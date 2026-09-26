@@ -24,6 +24,7 @@ packages = ["src/dicojev"]
 [tool.pytest.ini_options]
 addopts = "-q"
 testpaths = ["tests"]
+pythonpath = ["."]
 markers = ["integration: requires an explicitly enabled external model/service"]
 
 [tool.ruff]
