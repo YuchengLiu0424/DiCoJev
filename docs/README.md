@@ -8,6 +8,7 @@ This directory is the human-facing documentation tree. Each normative concept ha
 | Research problem, applications, strengths/weaknesses, contributions | [`research/PROJECT_DESCRIPTION.md`](research/PROJECT_DESCRIPTION.md) | researchers, paper authors |
 | Prior work and novelty boundaries | [`research/RELATED_WORK.md`](research/RELATED_WORK.md) | researchers, reviewers |
 | Evaluation hypotheses, metrics, ablations | [`research/EVALUATION.md`](research/EVALUATION.md) | experiment owners |
+| v1 local runtime and backend evaluation evidence | [`research/LOCAL_DLM_TRIAL.md`](research/LOCAL_DLM_TRIAL.md), [`research/V1_EVALUATION.md`](research/V1_EVALUATION.md) | researchers, reviewers |
 | Component boundaries and runtime flow | [`design/ARCHITECTURE.md`](design/ARCHITECTURE.md) | engineers |
 | Coverage, selection, NOTA, controller semantics | [`design/DECISION_SEMANTICS.md`](design/DECISION_SEMANTICS.md) | engineers, researchers |
 | Typed low-bandwidth feedback protocol | [`design/FEEDBACK_PROTOCOL.md`](design/FEEDBACK_PROTOCOL.md) | engineers, researchers |

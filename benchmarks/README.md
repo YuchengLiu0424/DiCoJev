@@ -7,3 +7,28 @@ The authoritative experiment design and metric definitions live in:
 `docs/research/EVALUATION.md`
 
 Do not commit licensed/private raw datasets, user screenshots, credentials, or model weights. Small synthetic fixtures are preferred for repository tests.
+
+## v1 text evaluation
+
+`v1_text_decisions.json` contains five small, human-auditable personal-computer decision cases.
+The email case persists the candidate set produced by the local DiffusionGemma compact smoke; the
+other cases are explicitly marked human fixtures. These fixtures test backend reads, not DLM
+generation quality.
+
+Validate the dataset without any service or API cost:
+
+```bash
+python scripts/evaluate_v1.py
+```
+
+Run identical persisted candidate sets through Jev, Laya, or both:
+
+```bash
+python scripts/evaluate_v1.py --backend jev --output results/v1_jev.json
+python scripts/evaluate_v1.py --backend laya --output results/v1_laya.json
+python scripts/evaluate_v1.py --backend both --output results/v1_jev_laya.json
+```
+
+Jev requires `JEV_API_KEY`. Laya requires its local Jev-compatible service at the configured URL.
+The report includes the dataset SHA-256, per-case evidence and selection, coverage Brier score,
+acceptable/preferred selection rates, usage returned by the backend, and latency summaries.

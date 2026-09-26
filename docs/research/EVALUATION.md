@@ -2,6 +2,10 @@
 
 This file owns research hypotheses, benchmark construction, metrics, and ablations.
 
+The first small v1 integration run is recorded in `V1_EVALUATION.md`. It validates shared
+candidate-set transport and establishes the runner, but it is not evidence for the broader
+coverage/recovery hypotheses below.
+
 ## 1. Core hypotheses
 
 H1. `q_cov` contains useful information about candidate-set adequacy beyond `q_sel` and top-1 score.
