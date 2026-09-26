@@ -1,6 +1,6 @@
-# Diffusion Decision
+# DiCoJev
 
-**Diffusion Decision** is a local-first research system for fast multimodal decision making when the action set is **not known in advance**.
+**DiCoJev** is a local-first research system for **fast multimodal decision making** over **dynamically generated** action sets, with explicit **coverage-aware** feedback when the current choices are incomplete or insufficient.
 
 Instead of assuming that a caller has already supplied the correct choices, the system lets a diffusion language model (DLM) construct candidate actions, then asks a pluggable decision backend two different questions:
 
