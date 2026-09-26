@@ -118,6 +118,21 @@ def _tokens(action: str) -> set[str]:
     return set(re.findall(r"[a-z0-9]+", canonical_action(action)))
 
 
+def _violates_explicit_constraint(action: str, constraint: str) -> bool:
+    action_tokens = _tokens(action)
+    constraint_tokens = re.findall(r"[a-z0-9]+", constraint.casefold())
+    if constraint_tokens[:2] not in (["do", "not"], ["must", "not"]):
+        return False
+    rule = constraint_tokens[2:]
+    if "without" in rule:
+        split = rule.index("without")
+        prohibited = set(rule[:split])
+        required = set(rule[split + 1 :])
+        return bool(prohibited) and prohibited <= action_tokens and not required <= action_tokens
+    prohibited = set(rule)
+    return bool(prohibited) and prohibited <= action_tokens
+
+
 def evaluate_candidate_quality(
     candidates: list[Candidate], request: DecisionRequest
 ) -> dict[str, CandidateQuality]:
@@ -146,7 +161,12 @@ def evaluate_candidate_quality(
         valid = valid and not any(ord(character) < 32 for character in candidate.action)
         tool_available = candidate.tool is None or candidate.tool in tools
         violations = set(candidate.constraint_violations)
-        constraint_compliant = not violations or not declared_constraints.intersection(violations)
+        declared_violation = bool(declared_constraints.intersection(violations))
+        lexical_violation = any(
+            _violates_explicit_constraint(candidate.action, constraint)
+            for constraint in request.constraints
+        )
+        constraint_compliant = not declared_violation and not lexical_violation
         result[candidate_id] = CandidateQuality(
             candidate_id=candidate_id,
             syntactically_valid=valid,
@@ -173,9 +193,7 @@ def merge_candidate_quality(
             syntactically_valid=expected.syntactically_valid and observed.syntactically_valid,
             executable=expected.executable and observed.executable,
             tool_available=expected.tool_available and observed.tool_available,
-            constraint_compliant=(
-                expected.constraint_compliant and observed.constraint_compliant
-            ),
+            constraint_compliant=(expected.constraint_compliant and observed.constraint_compliant),
             redundancy_group=expected.redundancy_group or observed.redundancy_group,
         )
     return merged

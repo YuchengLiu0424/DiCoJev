@@ -3,10 +3,8 @@
 import argparse
 import asyncio
 
-import httpx
-
 from dicojev.feedback import DeterministicFeedbackCompiler
-from dicojev.generator import DEFAULT_MODEL, DiffusionGemmaGenerator
+from dicojev.generator import DEFAULT_MODEL, DiffusionGemmaGenerator, MercuryGenerator
 from dicojev.harness import CandidateRegistry
 from dicojev.schemas import (
     DecisionRequest,
@@ -20,13 +18,15 @@ from dicojev.schemas import (
 
 async def main() -> None:
     parser = argparse.ArgumentParser()
+    parser.add_argument("--generator", choices=("local", "mercury"), default="local")
     parser.add_argument("--base-url", default="http://127.0.0.1:8000")
     parser.add_argument("--model", default=DEFAULT_MODEL)
     args = parser.parse_args()
-    async with httpx.AsyncClient(base_url=args.base_url, timeout=10) as client:
-        response = await client.get("/v1/models")
-        response.raise_for_status()
-    generator = DiffusionGemmaGenerator(base_url=args.base_url, model=args.model)
+    generator = (
+        MercuryGenerator()
+        if args.generator == "mercury"
+        else DiffusionGemmaGenerator(base_url=args.base_url, model=args.model)
+    )
     request = DecisionRequest(
         state=MultimodalState(text="A draft email is ready but recipients are unverified."),
         goal="Choose the safest useful next action",
@@ -53,7 +53,10 @@ async def main() -> None:
         remaining_expansion_budget=0,
     )
     expansion = await generator.generate(request, context)
-    print(f"health=ok initial={len(initial.candidates)} expansion={len(expansion.candidates)}")
+    print(
+        f"generator={args.generator} initial={len(initial.candidates)} "
+        f"expansion={len(expansion.candidates)}"
+    )
 
 
 if __name__ == "__main__":

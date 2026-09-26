@@ -89,7 +89,10 @@ class DecisionOrchestrator:
             backend_units = 0.0
             try:
                 elapsed_ms = (perf_counter() - run_started) * 1000
-                if request.budget.latency_ms is not None and elapsed_ms >= request.budget.latency_ms:
+                if (
+                    request.budget.latency_ms is not None
+                    and elapsed_ms >= request.budget.latency_ms
+                ):
                     raise BudgetExhausted("latency_budget_exhausted")
                 if (
                     request.budget.compute_units is not None
@@ -204,14 +207,10 @@ class DecisionOrchestrator:
                         else None
                     ),
                     selected_candidate_id=(
-                        backend_result.selection.selected_id
-                        if backend_result.selection
-                        else None
+                        backend_result.selection.selected_id if backend_result.selection else None
                     ),
                     selection_probabilities=(
-                        backend_result.selection.probabilities
-                        if backend_result.selection
-                        else {}
+                        backend_result.selection.probabilities if backend_result.selection else {}
                     ),
                     feedback_codes=feedback_codes,
                     controller_action=decision.action,
@@ -249,8 +248,7 @@ class DecisionOrchestrator:
                 if request.budget.latency_ms is not None:
                     remaining_latency = max(
                         0.0,
-                        request.budget.latency_ms
-                        - (perf_counter() - run_started) * 1000,
+                        request.budget.latency_ms - (perf_counter() - run_started) * 1000,
                     )
             except Exception as error:  # noqa: BLE001 - normalize compiler boundary fail-closed
                 decision = self._failure(

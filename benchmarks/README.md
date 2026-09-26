@@ -45,3 +45,11 @@ python scripts/evaluate_v2.py --output results/v2_controlled.json
 
 The report persists per-round coverage and selection evidence, candidate quality, typed feedback,
 controller action, feedback bandwidth, component latency, and compute/budget accounting.
+
+Run the matched live Jev adequate-versus-deleted comparison and persist the normalized result:
+
+```bash
+python scripts/evaluate_v2_jev_deletion.py --output results/v2_jev_deletion.json
+```
+
+This requires `JEV_API_KEY`; the input set is fixed in `v2_jev_candidate_deletion.json`.

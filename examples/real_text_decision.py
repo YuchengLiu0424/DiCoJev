@@ -7,13 +7,14 @@ import os
 from dicojev.backends import DjevLocalBackend, JevCloudBackend, LayaLocalBackend
 from dicojev.controller import ThresholdRiskController
 from dicojev.feedback import DeterministicFeedbackCompiler
-from dicojev.generator import DEFAULT_MODEL, DiffusionGemmaGenerator
+from dicojev.generator import DEFAULT_MODEL, DiffusionGemmaGenerator, MercuryGenerator
 from dicojev.harness import DecisionOrchestrator
 from dicojev.schemas import DecisionRequest, MultimodalState
 
 
 async def main() -> None:
     parser = argparse.ArgumentParser()
+    parser.add_argument("--generator", choices=("local", "mercury"), default="local")
     parser.add_argument("--backend", choices=("djev", "jev", "laya"), default="djev")
     parser.add_argument("--generator-url", default="http://127.0.0.1:8000")
     parser.add_argument(
@@ -32,12 +33,17 @@ async def main() -> None:
             base_url=os.getenv("JEV_BASE_URL", "https://api.typesafe.ai"),
             model=os.getenv("JEV_MODEL", "jev-latest"),
         )
-    response = await DecisionOrchestrator(
-        DiffusionGemmaGenerator(
+    generator = (
+        MercuryGenerator()
+        if args.generator == "mercury"
+        else DiffusionGemmaGenerator(
             base_url=args.generator_url,
             model=args.generator_model,
             timeout_seconds=600,
-        ),
+        )
+    )
+    response = await DecisionOrchestrator(
+        generator,
         backend,
         ThresholdRiskController(),
         DeterministicFeedbackCompiler(),

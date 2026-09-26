@@ -86,7 +86,8 @@ class CandidateGenerator(Protocol):
     ) -> DecisionSpec: ...
 ```
 
-The default implementation family is DiffusionGemma.
+The supported implementation family is diffusion language models: hosted Mercury for fast text
+generation and local DiffusionGemma for local/private or native-image generation.
 
 ## 5. DecisionSpec
 

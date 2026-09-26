@@ -60,7 +60,9 @@ async def evaluate_case(case: dict[str, Any]) -> dict[str, Any]:
         constraints=tuple(case.get("constraints", ())),
         budget=DecisionBudget.model_validate(case["budget"]),
     )
-    rounds = [tuple(Candidate.model_validate(item) for item in items) for items in case["candidates"]]
+    rounds = [
+        tuple(Candidate.model_validate(item) for item in items) for items in case["candidates"]
+    ]
     capabilities = BackendCapabilities(
         supports_images=bool(state.images),
         supports_native_multimodal=bool(state.images),
@@ -94,11 +96,7 @@ async def evaluate_case(case: dict[str, Any]) -> dict[str, Any]:
 async def run(path: Path = DEFAULT_DATASET) -> dict[str, Any]:
     cases = [await evaluate_case(case) for case in load_cases(path)]
     controller_actions = sorted(
-        {
-            round_["controller_action"]
-            for case in cases
-            for round_ in case["rounds"]
-        }
+        {round_["controller_action"] for case in cases for round_ in case["rounds"]}
     )
     return {
         "schema_version": "v2-controlled-1",

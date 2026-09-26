@@ -112,13 +112,9 @@ class ThresholdRiskController:
                 "invalid_candidate_format",
                 invalid,
             )
-        elif unavailable and (
-            selected_id in unavailable or len(unavailable) == len(all_quality)
-        ):
+        elif unavailable and (selected_id in unavailable or len(unavailable) == len(all_quality)):
             quality_issue = (FeedbackCode.TOOL_MISMATCH, "unavailable_candidate_tool", unavailable)
-        elif violations and (
-            selected_id in violations or len(violations) == len(all_quality)
-        ):
+        elif violations and (selected_id in violations or len(violations) == len(all_quality)):
             quality_issue = (
                 FeedbackCode.CONSTRAINT_FAILURE,
                 "candidate_constraint_violation",

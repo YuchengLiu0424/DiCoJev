@@ -1,29 +1,35 @@
-# Real DLM Runtime Plan
+# Supported DLM Runtime Paths
 
-This document owns the planned local runtime shape for real model integration. It does not make GPU/model serving a v0 dependency.
+This document owns real candidate-generator setup. The project no longer plans or requires a
+separate rented GPU server. Supported v2 paths are the hosted Mercury API for fast text decisions
+and the proven local DiffusionGemma runtime for text or native-image decisions.
 
-## Default model
-
-```text
-google/diffusiongemma-26B-A4B-it
-```
-
-## Separation of environments
-
-Recommended topology:
+## Runtime choice
 
 ```text
-DiCoJev application environment
-        |
-        | HTTP/local client protocol
-        v
-separate GPU model-serving environment
-        |
-        v
-DiffusionGemma runtime
+fast hosted text path:  Inception Mercury API
+local/private path:     google/diffusiongemma-26B-A4B-it
+native image path:      local DiffusionGemma
 ```
 
-This keeps CUDA/vLLM/model dependencies from contaminating CPU-only unit tests.
+Mercury is treated as text-only until Inception publishes and the project verifies a native image
+request contract. Image requests must fail explicitly on Mercury; they are never silently captioned.
+
+## Mercury API
+
+Set the API key only in the environment:
+
+```bash
+export INCEPTION_API_KEY="..."
+python scripts/runtime_smoke.py --generator mercury
+```
+
+The default endpoint is `https://api.inceptionlabs.ai/v1` and the default stable model identifier is
+`mercury-2.5`; both can be overridden with `INCEPTION_BASE_URL` and `INCEPTION_MODEL`. Mercury uses
+the same bounded project-native candidate parser as the local generator. It can return optional
+`tool` and exact `constraint_violations` metadata for each candidate.
+
+## Local DiffusionGemma
 
 ## Model storage
 
@@ -31,37 +37,16 @@ Weights must be downloaded into a model cache such as Hugging Face cache or a co
 
 Suggested ignored locations/patterns include `models/`, `weights/`, `checkpoints/`, `*.safetensors`, `*.bin`, `*.pt`, and `*.pth`.
 
-## v1 fresh-machine runtime sequence
-
-The application and GPU server should use separate environments. On a Linux NVIDIA host:
-
-```bash
-nvidia-smi
-docker --version
-mkdir -p "$HOME/.cache/huggingface"
-docker run --gpus all --rm --shm-size 32g --ipc=host \
-  -p 8000:8000 \
-  -v "$HOME/.cache/huggingface:/root/.cache/huggingface" \
-  -e HF_TOKEN \
-  lmsysorg/sglang:latest \
-  python3 -m sglang.launch_server \
-  --model-path google/diffusiongemma-26B-A4B-it \
-  --host 0.0.0.0 --port 8000
-```
-
-The first launch downloads weights into the mounted Hugging Face cache. Gemma access may
-require accepting its license and setting `HF_TOKEN`; never place that token in repository
-files. The model is large and requires an appropriate supported GPU/runtime. DiffusionGemma
-serving support evolves, so verify the current model card's SGLang/vLLM notes before launch.
-
-In the CPU application environment, install and check readiness:
+Run the already-proven local quantized DiffusionGemma setup through its OpenAI-compatible local
+endpoint. CPU inference is slow but functional and keeps model data local. After starting that
+runtime, check it with:
 
 ```bash
 python -m venv .venv
 source .venv/bin/activate
 pip install -e ".[dev]"
 curl --fail http://127.0.0.1:8000/v1/models
-python scripts/runtime_smoke.py --base-url http://127.0.0.1:8000
+python scripts/runtime_smoke.py --generator local --base-url http://127.0.0.1:8000
 ```
 
 `runtime_smoke.py` performs the health check, one text candidate generation, then one
@@ -127,9 +112,8 @@ peaked at about 27.8 GiB RSS. A two-block 512-token run took 7m27s at about 1.5 
 tokens/second with the same peak RSS. See `docs/research/LOCAL_DLM_TRIAL.md` for the exact
 configuration, decision-backend results, and current strict-JSON limitation.
 
-This establishes that external GPU rental is not required for the project's proof path.
-GPU serving remains useful for iteration speed, but is an optimization rather than a basic
-installation requirement.
+This establishes the local proof path. External GPU serving is abandoned; performance-sensitive
+text runs use Mercury, while native-image or local/private runs accept the measured CPU latency.
 
 ## Djev
 

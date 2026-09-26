@@ -22,6 +22,11 @@ model:
   max_candidates: 8
 ```
 
+`generator_kind` may be `fake`, `mercury`, or `diffusiongemma`. Mercury reads
+`INCEPTION_API_KEY`, defaults to `https://api.inceptionlabs.ai/v1` and `mercury-2.5`, and declares
+text-only capability. DiffusionGemma uses the configured local OpenAI-compatible endpoint and
+declares native image capability.
+
 ## `decision_backend`
 
 ```yaml

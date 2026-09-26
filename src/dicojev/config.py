@@ -10,7 +10,7 @@ import yaml
 from .backends import DjevLocalBackend, JevCloudBackend, LayaLocalBackend, MockDecisionBackend
 from .backends.cross_encoder import CrossEncoderDecisionBackend
 from .errors import ConfigurationError
-from .generator import DiffusionGemmaGenerator, FakeCandidateGenerator
+from .generator import DiffusionGemmaGenerator, FakeCandidateGenerator, MercuryGenerator
 
 
 def load_config(path: str | Path) -> dict[str, Any]:
@@ -33,6 +33,14 @@ def create_generator(config: dict[str, Any], **dependencies: Any):
         return DiffusionGemmaGenerator(
             base_url=model.get("base_url", "http://127.0.0.1:8000"),
             model=model.get("generator_model", "google/diffusiongemma-26B-A4B-it"),
+            timeout_seconds=model.get("timeout_seconds", 60),
+            transport=dependencies.get("transport"),
+        )
+    if kind == "mercury":
+        return MercuryGenerator(
+            api_key=dependencies.get("api_key"),
+            base_url=model.get("base_url", "https://api.inceptionlabs.ai/v1"),
+            model=model.get("generator_model", "mercury-2.5"),
             timeout_seconds=model.get("timeout_seconds", 60),
             transport=dependencies.get("transport"),
         )

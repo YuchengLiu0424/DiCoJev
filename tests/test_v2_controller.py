@@ -52,6 +52,12 @@ def test_rule_quality_flags_tool_constraint_format_and_redundancy(decision_reque
     assert quality["A"].redundancy_group == quality["B"].redundancy_group
 
 
+def test_string_candidate_triggers_explicit_constraint_rule(decision_request):
+    request = decision_request.model_copy(update={"constraints": ("Do not send without review",)})
+    quality = evaluate_candidate_quality([Candidate(id="A", action="Send now")], request)
+    assert quality["A"].constraint_compliant is False
+
+
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
     ("quality", "expected"),
@@ -114,4 +120,3 @@ async def test_latency_budget_prevents_expansion_after_completed_read(decision_r
     assert len(response.trace) == 1
     assert response.trace[0].remaining_latency_ms == 0
     assert "latency_budget_exhausted" in response.controller.reason_code
-

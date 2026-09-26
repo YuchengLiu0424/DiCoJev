@@ -114,4 +114,3 @@ def _guess_media_type(name: str) -> str:
     if guessed is None:
         raise ValueError("image media type is required for an unknown extension")
     return guessed
-

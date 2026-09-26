@@ -3,9 +3,9 @@ import json
 import httpx
 import pytest
 
-from dicojev.errors import MalformedProviderResponse
+from dicojev.errors import CapabilityMismatch, ConfigurationError, MalformedProviderResponse
 from dicojev.feedback import DeterministicFeedbackCompiler
-from dicojev.generator import DiffusionGemmaGenerator
+from dicojev.generator import DiffusionGemmaGenerator, MercuryGenerator
 from dicojev.schemas import (
     Candidate,
     DecisionRequest,
@@ -103,6 +103,56 @@ def test_generator_rejects_full_spec_and_constructs_stable_fields():
     with pytest.raises(MalformedProviderResponse):
         DiffusionGemmaGenerator.parse_response(
             '{"candidates":["Review"],"task":"model-controlled"}', request
+        )
+
+
+def test_compact_generator_accepts_optional_tool_and_constraint_metadata():
+    request = DecisionRequest(
+        state=MultimodalState(text="x"),
+        goal="Choose safely",
+        available_tools=("review",),
+        constraints=("Do not send without review",),
+    )
+    spec = DiffusionGemmaGenerator.parse_response(
+        json.dumps(
+            {
+                "candidates": [
+                    {"action": "Review locally", "tool": "review"},
+                    {
+                        "action": "Send now",
+                        "constraint_violations": ["Do not send without review"],
+                    },
+                ]
+            }
+        ),
+        request,
+    )
+    assert spec.candidates[0].tool == "review"
+    assert spec.candidates[1].constraint_violations == ("Do not send without review",)
+
+
+@pytest.mark.asyncio
+async def test_mercury_uses_auth_and_fails_explicitly_for_images(monkeypatch):
+    monkeypatch.delenv("INCEPTION_API_KEY", raising=False)
+    with pytest.raises(ConfigurationError):
+        MercuryGenerator()
+
+    captured = {}
+
+    def handler(request):
+        captured["authorization"] = request.headers["authorization"]
+        return httpx.Response(200, json=completion([{"action": "Review"}]))
+
+    generator = MercuryGenerator(api_key="fixture", transport=httpx.MockTransport(handler))
+    spec = await generator.generate(DecisionRequest(state=MultimodalState(text="x"), goal="Choose"))
+    assert spec.candidates[0].action == "Review"
+    assert captured["authorization"] == "Bearer fixture"
+    with pytest.raises(CapabilityMismatch):
+        await generator.generate(
+            DecisionRequest(
+                state=MultimodalState(images=({"uri": "memory://image.png"},)),
+                goal="Choose",
+            )
         )
 
 

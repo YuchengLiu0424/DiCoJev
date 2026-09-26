@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Replaced the abandoned external GPU-server plan with two supported generator paths: hosted
+  Mercury for fast text decisions and the proven local DiffusionGemma runtime for local/native-image
+  decisions.
+- Extended compact generation output with optional tool and constraint metadata and added
+  deterministic detection for explicit `do not` / `must not` constraints in string-only output.
 - Implemented v2 native multimodal image references and OpenAI-compatible generator/Djev
   transport with explicit capability negotiation, media validation, and bounded payloads.
 - Added deterministic candidate-quality checks, budget-aware closed-loop routing, typed

@@ -81,10 +81,7 @@ async def test_capable_djev_adapter_transports_native_image():
     backend = DjevLocalBackend(
         transport=httpx.MockTransport(handler), supports_native_multimodal=True
     )
-    image = ImageRef(
-        uri="data:image/png;base64," + base64.b64encode(PNG).decode("ascii")
-    )
+    image = ImageRef(uri="data:image/png;base64," + base64.b64encode(PNG).decode("ascii"))
     await backend.decide(request_with(image).state, spec(), [Candidate(id="A", action="Inspect")])
     assert captured["state"]["images"][0]["url"].startswith("data:image/png;base64,")
     assert backend.capabilities.supports_native_multimodal
-
