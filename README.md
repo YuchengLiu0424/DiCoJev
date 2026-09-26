@@ -37,7 +37,7 @@ Fast classifiers and structured decision models are attractive because they retu
 
 Open-world agents have a different failure mode. They may generate three plausible actions, assign 95% confidence to the best one, and still fail because the actually useful action was never generated.
 
-Diffusion Decision makes that failure mode explicit. It separates:
+DiCoJev makes that failure mode explicit. It separates:
 
 ```text
 q_cov  = estimated adequacy of the generated candidate set
@@ -194,7 +194,7 @@ The normalized result keeps candidate-set adequacy and conditional selection con
 ## Repository layout
 
 ```text
-diffusion-decision/
+DiCoJev/
 ├── README.md                       # public GitHub landing page
 ├── pyproject.toml
 ├── configs/                        # executable configuration profiles
@@ -209,7 +209,7 @@ diffusion-decision/
 │   ├── START_HERE.md               # coding-agent entry point
 │   ├── EXECUTION_PROTOCOL.md       # machine-oriented working rules
 │   └── tasks/                      # implementation tasks by release milestone
-├── src/diffusion_decision/
+├── src/DiCoJev/
 ├── tests/
 ├── benchmarks/
 ├── examples/
