@@ -39,9 +39,11 @@ used. This is a runtime-support distinction, not a model-memory failure.
 |---:|---:|---:|---:|---:|---:|
 | 256 tokens / 1 block | 16 | 5m18.88s | 29,120,056 KiB (~27.8 GiB) | 0 | 1.3 tok/s |
 | 512 tokens / 2 blocks | 30 | 7m26.62s | 29,120,368 KiB (~27.8 GiB) | 0 | 1.5 tok/s |
+| 256 tokens / 1 block, compact contract | 16 | 4m38.59s | 29,120,412 KiB (~27.8 GiB) | 0 | 1.5 tok/s |
 
-The 512-token output completed a structured thought-channel representation of every required
-field and generated these candidate actions:
+The initial full-specification prompt made the model repeat deterministic protocol fields. The
+512-token output completed a structured thought-channel representation of every required field
+and generated these candidate actions:
 
 1. `verify_recipients`
 2. `save_draft_for_review`
@@ -61,10 +63,12 @@ already-completed field values were copied exactly from the model output into a 
 | Laya CPU (`laya-rl-agent`) | A: `verify_recipients` | 0.9194 | 0.8971 | 0.6805 | 1631 ms |
 
 The trial demonstrates the intended DLM + compact decision-read composition on local consumer
-hardware. It does not yet pass the stricter claim that the local DLM can always emit a complete
-project-native JSON object within two canvas blocks. The next runtime task is constrained/final-
-channel decoding or a longer output budget, followed by the existing strict parser with no
-field recovery.
+hardware. A follow-up compact contract delegates only candidate actions to the DLM and constructs
+the stable `DecisionSpec` fields deterministically in the adapter. With that contract, the same
+local 26B model emitted a complete three-candidate object in one 256-token block. Its untouched
+stdout passed the production strict parser; no candidate or field was manually recovered. This is
+a successful smoke test, not a claim that every prompt will succeed, so malformed output continues
+to fail closed.
 
 Laya also warned that one checkpoint temperature was outside its accepted range and was clamped
 to 0.5. Its confidence is therefore treated as uncalibrated and must not be compared numerically
