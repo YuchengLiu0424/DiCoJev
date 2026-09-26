@@ -12,7 +12,8 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_valida
 
 from ..errors import GeneratorUnavailable, MalformedProviderResponse
 from ..harness.core import canonical_action
-from ..schemas import Candidate, DecisionRequest, DecisionSpec, LoopContext
+from ..multimodal import materialize_image
+from ..schemas import Candidate, DecisionRequest, DecisionSpec, GeneratorCapabilities, LoopContext
 
 DEFAULT_MODEL = "google/diffusiongemma-26B-A4B-it"
 
@@ -40,6 +41,8 @@ class _CompactCandidates(BaseModel):
 class DiffusionGemmaGenerator:
     """Generate project-native DecisionSpec JSON through an HTTP model server."""
 
+    capabilities = GeneratorCapabilities(supports_images=True, supports_native_multimodal=True)
+
     def __init__(
         self,
         *,
@@ -66,7 +69,7 @@ class DiffusionGemmaGenerator:
 
     def build_messages(
         self, request: DecisionRequest, context: LoopContext | None = None
-    ) -> list[dict[str, str]]:
+    ) -> list[dict[str, Any]]:
         limit = self._candidate_limit(request, context)
         expansion = ""
         if context is not None:
@@ -91,6 +94,14 @@ class DiffusionGemmaGenerator:
             "Return one JSON object with exactly one key named candidates. "
             "Its value must be an array of concise action strings."
         )
+        user_content: str | list[dict[str, Any]] = user
+        if request.state.images:
+            user_content = [{"type": "text", "text": user}]
+            for image in request.state.images:
+                native = materialize_image(image)
+                user_content.append(
+                    {"type": "image_url", "image_url": {"url": native.url}}
+                )
         return [
             {
                 "role": "system",
@@ -100,7 +111,7 @@ class DiffusionGemmaGenerator:
                     "controller actions."
                 ),
             },
-            {"role": "user", "content": user},
+            {"role": "user", "content": user_content},
         ]
 
     @staticmethod
@@ -168,8 +179,6 @@ class DiffusionGemmaGenerator:
     async def generate(
         self, request: DecisionRequest, context: LoopContext | None = None
     ) -> DecisionSpec:
-        if request.state.images:
-            raise GeneratorUnavailable("v1 generator supports text state only")
         limit = self._candidate_limit(request, context)
         started = perf_counter()
         try:

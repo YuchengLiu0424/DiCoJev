@@ -94,6 +94,10 @@ Rules:
 
 When paired with a DiffusionGemma generator, this backend creates a two-diffusion-stage architecture and must be labeled as such in benchmarks.
 
+For v2, the local adapter accepts `supports_native_multimodal: true` only when the connected
+service is known to accept native image entries. It transports validated HTTP references or data
+URLs in `state.images`; the default remains false and therefore fails explicitly for image state.
+
 Djev reference: https://github.com/mmastrac/djev
 
 ## 7. CrossEncoderDecisionBackend

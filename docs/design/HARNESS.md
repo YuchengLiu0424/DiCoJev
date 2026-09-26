@@ -52,6 +52,11 @@ For each semantic candidate:
 - deduplicate before compact-label assignment;
 - preserve stable IDs across expansion rounds whenever semantics remain unchanged.
 
+The reference quality pass records invalid formatting, unavailable tools, explicitly declared
+constraint violations, and token-overlap redundancy groups. These flags remain separate from
+backend coverage evidence. Explicit constraint violations are carried on the candidate rather
+than inferred from unrestricted natural-language reasoning.
+
 ## 6. NOTA
 
 Synthetic `N = None of the above` is injected only for compatible backends. The generator does not create it. It is `synthetic=true` and excluded from semantic candidate coverage calculations.
@@ -124,3 +129,11 @@ remaining budget
 ```
 
 Raw image bytes are excluded from telemetry by default.
+
+## 12. v2 budget accounting
+
+The reference loop charges one compute unit for candidate generation and one for a backend read.
+An expansion begins only when two compute units remain. Wall-clock latency is measured from loop
+entry, and a completed evidence read may still result in `ACT`; exhausted latency prevents another
+expansion. Traces record remaining candidate, expansion, latency, and compute budgets after each
+round.

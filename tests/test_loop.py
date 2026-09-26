@@ -76,7 +76,9 @@ async def test_backend_and_feedback_failure_fail_closed(decision_request):
         escalation,
     ).run(decision_request)
     assert response.action is MetaAction.ESCALATE
-    assert response.escalation_result == "escalated"
+    assert response.escalation_result is not None
+    assert response.escalation_result.status == "accepted"
+    assert response.escalation_result.message == "escalated"
 
     class BrokenCompiler:
         async def compile(self, feedback):

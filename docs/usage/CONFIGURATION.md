@@ -30,6 +30,7 @@ decision_backend:
   base_url: null
   model: null
   timeout_seconds: 30
+  supports_native_multimodal: false
 ```
 
 ## `controller`
@@ -46,6 +47,9 @@ controller:
 ```
 
 Thresholds are experimental defaults, not universal guarantees.
+
+Set `supports_native_multimodal: true` for `djev_local` only when that deployed service accepts
+the v2 `state.images` wire entries. The default is false and image requests fail closed.
 
 ## `feedback`
 

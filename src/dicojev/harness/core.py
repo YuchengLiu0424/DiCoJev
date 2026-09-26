@@ -10,7 +10,7 @@ from typing import Any
 
 from pydantic import ValidationError
 
-from ..schemas import Candidate, DecisionRequest, DecisionSpec
+from ..schemas import Candidate, CandidateQuality, DecisionRequest, DecisionSpec
 
 
 class InvalidDecisionSpec(ValueError):
@@ -112,10 +112,73 @@ def validate_candidates(candidates: list[Candidate], request: DecisionRequest) -
         raise InvalidDecisionSpec("candidate set is empty after normalization")
     if len(candidates) > request.budget.max_candidates:
         raise InvalidDecisionSpec("candidate set exceeds max_candidates budget")
+
+
+def _tokens(action: str) -> set[str]:
+    return set(re.findall(r"[a-z0-9]+", canonical_action(action)))
+
+
+def evaluate_candidate_quality(
+    candidates: list[Candidate], request: DecisionRequest
+) -> dict[str, CandidateQuality]:
+    """Compute deterministic quality flags independently of coverage evidence."""
     tools = set(request.available_tools)
+    groups: dict[str, str] = {}
+    token_sets: dict[str, set[str]] = {}
     for candidate in candidates:
-        if candidate.tool is not None and candidate.tool not in tools:
-            raise InvalidDecisionSpec(f"candidate {candidate.id} uses unavailable tool")
+        candidate_id = candidate.id or ""
+        current = _tokens(candidate.action)
+        for prior_id, prior in token_sets.items():
+            union = current | prior
+            similarity = len(current & prior) / len(union) if union else 1.0
+            if similarity >= 0.75:
+                group = groups.get(prior_id, f"redundancy:{prior_id}")
+                groups[prior_id] = group
+                groups[candidate_id] = group
+                break
+        token_sets[candidate_id] = current
+
+    declared_constraints = set(request.constraints)
+    result: dict[str, CandidateQuality] = {}
+    for candidate in candidates:
+        candidate_id = candidate.id or ""
+        valid = bool(candidate.action.strip()) and len(candidate.action) <= 500
+        valid = valid and not any(ord(character) < 32 for character in candidate.action)
+        tool_available = candidate.tool is None or candidate.tool in tools
+        violations = set(candidate.constraint_violations)
+        constraint_compliant = not violations or not declared_constraints.intersection(violations)
+        result[candidate_id] = CandidateQuality(
+            candidate_id=candidate_id,
+            syntactically_valid=valid,
+            executable=valid and tool_available and constraint_compliant,
+            tool_available=tool_available,
+            constraint_compliant=constraint_compliant,
+            redundancy_group=groups.get(candidate_id),
+        )
+    return result
+
+
+def merge_candidate_quality(
+    reference: dict[str, CandidateQuality], backend: dict[str, CandidateQuality]
+) -> dict[str, CandidateQuality]:
+    """Combine independent flags conservatively; neither source can erase a failure."""
+    merged = dict(reference)
+    for candidate_id, observed in backend.items():
+        expected = merged.get(candidate_id)
+        if expected is None:
+            merged[candidate_id] = observed
+            continue
+        merged[candidate_id] = CandidateQuality(
+            candidate_id=candidate_id,
+            syntactically_valid=expected.syntactically_valid and observed.syntactically_valid,
+            executable=expected.executable and observed.executable,
+            tool_available=expected.tool_available and observed.tool_available,
+            constraint_compliant=(
+                expected.constraint_compliant and observed.constraint_compliant
+            ),
+            redundancy_group=expected.redundancy_group or observed.redundancy_group,
+        )
+    return merged
 
 
 def inject_nota(candidates: list[Candidate]) -> list[Candidate]:

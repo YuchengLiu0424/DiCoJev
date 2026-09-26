@@ -1,5 +1,5 @@
 project:
-  milestone: v1+
+  milestone: v2
   role: reference_baseline
 model:
   generator: google/diffusiongemma-26B-A4B-it
@@ -10,5 +10,6 @@ decision_backend:
   base_url: http://127.0.0.1:8011
   model: dgemma
   timeout_seconds: 30
+  supports_native_multimodal: true
 notes:
   two_dlm_stage_pipeline: true

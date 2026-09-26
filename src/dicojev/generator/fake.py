@@ -2,10 +2,12 @@
 
 from collections.abc import Iterable
 
-from ..schemas import Candidate, DecisionRequest, DecisionSpec, LoopContext
+from ..schemas import Candidate, DecisionRequest, DecisionSpec, GeneratorCapabilities, LoopContext
 
 
 class FakeCandidateGenerator:
+    capabilities = GeneratorCapabilities(supports_images=True, supports_native_multimodal=True)
+
     def __init__(self, rounds: Iterable[Iterable[Candidate | str]]) -> None:
         self._rounds = [tuple(items) for items in rounds]
         if not self._rounds:

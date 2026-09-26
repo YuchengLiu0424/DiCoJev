@@ -52,7 +52,7 @@ def create_backend(config: dict[str, Any], **dependencies: Any):
         results = dependencies.get("results")
         if results is None:
             raise ConfigurationError("mock backend requires scripted results")
-        return MockDecisionBackend(results)
+        return MockDecisionBackend(results, capabilities=dependencies.get("capabilities"))
     if kind == "jev_cloud":
         return JevCloudBackend(
             api_key=dependencies.get("api_key"),
@@ -62,6 +62,7 @@ def create_backend(config: dict[str, Any], **dependencies: Any):
         return DjevLocalBackend(
             **{key: value for key, value in common.items() if value is not None},
             label_validator=dependencies.get("label_validator"),
+            supports_native_multimodal=backend.get("supports_native_multimodal", False),
         )
     if kind == "laya_local":
         return LayaLocalBackend(

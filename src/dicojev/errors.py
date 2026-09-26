@@ -19,3 +19,11 @@ class BackendUnavailable(DiCoJevError):
 
 class MalformedProviderResponse(DiCoJevError):
     """A provider response cannot be normalized safely."""
+
+
+class CapabilityMismatch(DiCoJevError):
+    """A component cannot consume the requested state modality natively."""
+
+
+class BudgetExhausted(DiCoJevError):
+    """A configured latency, compute, round, or candidate budget is exhausted."""

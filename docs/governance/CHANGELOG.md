@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Implemented v2 native multimodal image references and OpenAI-compatible generator/Djev
+  transport with explicit capability negotiation, media validation, and bounded payloads.
+- Added deterministic candidate-quality checks, budget-aware closed-loop routing, typed
+  escalation results, and complete per-round latency/compute/feedback telemetry.
+- Added the 11-condition v2 controlled corruption/recovery matrix and reproducible report runner.
+
 - Implemented the v1 OpenAI-compatible DiffusionGemma generator client with bounded repair,
   typed-feedback expansion context, timeouts, and generation telemetry.
 - Added Jev Cloud, local Djev, and cross-encoder reference backends with normalized evidence,
