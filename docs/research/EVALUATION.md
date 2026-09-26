@@ -6,6 +6,42 @@ The first small v1 integration run is recorded in `V1_EVALUATION.md`. It validat
 candidate-set transport and establishes the runner, but it is not evidence for the broader
 coverage/recovery hypotheses below.
 
+## Evaluation progression
+
+Evaluation is deliberately staged with implementation maturity. The project should not replace
+its small deterministic tests with a large external benchmark prematurely, nor present integration
+fixtures as evidence of general decision-making ability.
+
+1. **Repository smoke suite.** Keep the current five-case v1 text set as a fast, inexpensive,
+   human-auditable integration check. It verifies candidate transport, backend normalization,
+   metrics, and reproducibility. It is not an ability benchmark.
+2. **Policy-grounded text and tool decisions.** As the v2 closed loop becomes stable, import a
+   small, version-pinned slice of published benchmark episodes—starting with τ-bench—while
+   preserving the original state, tools, policy, reference actions, and executable evaluator.
+   Decision checkpoints should be derived from released episodes rather than replaced with newly
+   invented trivia or obvious safety questions.
+3. **Adversarial agent decisions.** Add an AgentDojo slice when tool authorization, untrusted
+   observations, and fail-closed behavior can be represented faithfully. Measure utility and
+   security separately.
+4. **Stateful and multimodal operation.** Add ToolSandbox-style stateful conversations and then
+   OSWorld/WorkArena tasks only when the corresponding tool, image, and computer-state paths are
+   implemented. A benchmark must not be reduced to a text-only proxy that removes its defining
+   difficulty.
+5. **Full comparative evaluation.** Once DiCoJev is feature-complete for a benchmark condition,
+   compare it with named strong conventional LLM/agent baselines under matched observations,
+   tools, action budgets, and execution evaluators.
+
+For every imported checkpoint, distinguish four outcomes: both systems succeed; DiCoJev alone
+succeeds; the conventional baseline alone succeeds; or both fail. DiCoJev failures must then be
+localized to candidate omission, redundancy, false coverage, incorrect selection, unnecessary
+abstention, or failed feedback recovery. Cases where a strong baseline succeeds and DiCoJev fails
+define the empirical capability boundary and must be retained rather than tuned away.
+
+External benchmark data must remain version-pinned and attributable. Prefer adapters that consume
+the upstream dataset and evaluator over copying or rewriting benchmark questions into this
+repository. Record licenses, dataset splits, checkpoint-selection rules, and any transformation of
+the original observation or action space.
+
 ## 1. Core hypotheses
 
 H1. `q_cov` contains useful information about candidate-set adequacy beyond `q_sel` and top-1 score.

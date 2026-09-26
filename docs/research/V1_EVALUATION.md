@@ -8,6 +8,10 @@ This is a small integration evaluation, not a statistical benchmark. It checks t
 persisted text candidate sets can be compiled and read by hosted Jev and local Laya, and that the
 resulting evidence can be scored against human-auditable acceptable actions.
 
+This suite remains the repository's fast smoke test as later versions mature. Published external
+benchmarks are introduced progressively rather than replacing it; the staged policy and benchmark
+order are defined in `EVALUATION.md`.
+
 - Dataset: `benchmarks/v1_text_decisions.json`
 - Cases: 5
 - Candidates per case: 3
