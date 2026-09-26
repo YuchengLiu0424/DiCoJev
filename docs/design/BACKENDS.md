@@ -4,7 +4,7 @@ This file owns the behavior and compatibility requirements for decision backends
 
 ## 1. Purpose
 
-A `DecisionBackend` evaluates an already constructed candidate set. It does not generate or rewrite semantic actions.
+A `DecisionBackend` evaluates an already constructed candidate set. It does not generate or rewrite semantic actions. It also does not emit canonical DiCoJev feedback codes; it returns normalized evidence consumed by the controller/feedback layer.
 
 Normalized conceptual interface:
 

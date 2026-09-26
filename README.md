@@ -1,215 +1,144 @@
 # DiCoJev
 
-**DiCoJev** is a local-first research system for **fast multimodal decision making** over **dynamically generated** action sets, with explicit **coverage-aware** feedback when the current choices are incomplete or insufficient.
+**DiCoJev** is a local-first research framework for **coverage-aware Jev-style decision making over diffusion-generated action sets**.
 
-Instead of assuming that a caller has already supplied the correct choices, the system lets a diffusion language model (DLM) construct candidate actions, then asks a pluggable decision backend two different questions:
-
-1. **Is the candidate set adequate?**
-2. **If it is adequate, which candidate should be selected?**
-
-A controller uses those signals to choose one of four meta-actions:
+It targets fast multimodal agents whose valid next action is not known in advance. A diffusion language model (DLM) proposes candidate actions; a structured decision backend evaluates both **whether the candidate set is adequate** and **which candidate is best**; a typed low-bandwidth feedback loop then decides whether to act, expand the action set, abstain, or escalate.
 
 ```text
-ACT | EXPAND | ABSTAIN | ESCALATE
+Multimodal state + goal + tools + constraints
+                     |
+                     v
+             DLM CandidateGenerator
+                     |
+                     v
+                 DecisionSpec
+                     |
+                     v
+                DecisionHarness
+             /                    \
+            v                      v
+    DecisionBackend          Candidate Manager
+     coverage + selection          |
+            |                       |
+            v                       |
+       RiskController              |
+            |                       |
+     meta-action + feedback         |
+            |                       |
+            v                       |
+       FeedbackCompiler ------------+
+            |
+            +--> ACT
+            +--> EXPAND --> DLM CandidateGenerator
+            +--> ABSTAIN
+            +--> ESCALATE
 ```
 
-The project is therefore not a fixed `DLM + Jev` or `DLM + Djev` pipeline. The stable system boundary is:
+## Why DiCoJev
+
+Structured decision systems such as Jev-style selectors are efficient because they answer compact questions over supplied choices. Their key assumption is usually closed-world: the relevant choices are already present.
+
+Generated action sets break that assumption. A selector can assign 0.95 confidence to candidate `A` while the actually acceptable action is absent from the set. DiCoJev therefore keeps two quantities separate:
 
 ```text
-Multimodal State
-      |
-      v
-DLM Candidate Generator
-      |
-      v
-Decision Harness
-      |
-      v
-Pluggable DecisionBackend
-      |
-      v
-Risk / Compute Controller
+q_cov = evidence that the current candidate set contains at least one acceptable action
+q_sel = evidence/confidence for the selected action conditional on the current set
 ```
 
-## Why this project exists
+When the set is inadequate, DiCoJev does not force a top-1 action. It emits a compact typed feedback signal such as `MISSING_ACTION` or `TOOL_MISMATCH`, and the controller can request another generation round without requiring long-form natural-language deliberation.
 
-Fast classifiers and structured decision models are attractive because they return compact, probability-backed decisions instead of long autoregressive text. Their weakness is that they usually operate in a **closed world**: the set of labels or actions is assumed to be supplied correctly.
+## Core project contributions
 
-Open-world agents have a different failure mode. They may generate three plausible actions, assign 95% confidence to the best one, and still fail because the actually useful action was never generated.
+DiCoJev is designed around four coupled ideas:
 
-DiCoJev makes that failure mode explicit. It separates:
+1. **Diffusion-generated action sets** — a multimodal DLM constructs semantic candidate actions rather than requiring callers to predefine all choices.
+2. **Explicit candidate-set coverage** — candidate-set adequacy is modeled separately from within-set selection confidence.
+3. **Typed low-bandwidth feedback** — structured evidence is compressed into small feedback codes that drive targeted regeneration, abstention, or escalation.
+4. **Backend-neutral structured decision** — Jev, Djev, cross-encoders, and a project-owned native DLM read path are interchangeable behind one `DecisionBackend` contract.
 
-```text
-q_cov  = estimated adequacy of the generated candidate set
-q_sel  = confidence/preference for the selected candidate within that set
-```
-
-These are not treated as the same probability.
-
-## What the system does
-
-For each decision round, the intended workflow is:
-
-```text
-observation + goal + tools + constraints
-                  |
-                  v
-       multimodal DLM generation
-                  |
-                  v
-        project-native DecisionSpec
-                  |
-                  v
- validate / repair / dedupe / assign IDs / add NOTA
-                  |
-                  v
-          DecisionBackend read
-           |              |
-           v              v
-        coverage       selection
-           |              |
-           +------+- -----+
-                  v
-             controller
-      +-----------+-----------+-----------+
-      |           |           |           |
-     ACT        EXPAND      ABSTAIN     ESCALATE
-```
-
-`EXPAND` is important: low candidate-set coverage should be allowed to trigger more candidate generation instead of forcing a high-confidence choice among bad options.
+The project does **not** claim that candidate generation, generate-then-rank, NOTA, conformal coverage, or feedback loops are individually new. The research question is whether these components can be combined into a fast multimodal decision architecture whose uncertainty about its **self-generated decision space** is explicit and actionable.
 
 ## Default model and deployment philosophy
 
-The default DLM family is `google/diffusiongemma-26B-A4B-it`, selected because it supports image-text input and diffusion-style generation and can be served locally. The architecture does not hard-code this model; generator and decision interfaces remain replaceable.
+The default candidate generator family is:
 
-The preferred deployment is **local-first**. Hosted Jev is supported as a comparison backend, not as a required dependency.
+```text
+google/diffusiongemma-26B-A4B-it
+```
+
+The project is **local-first**. Model-serving and GPU dependencies are kept outside the CPU-only unit-test path. Hosted Jev is an optional comparison backend, not a required dependency.
 
 ## Decision backends
-
-All decision systems implement the same project-owned backend contract. The repository is designed to support:
 
 | Backend | Role |
 |---|---|
 | `MockDecisionBackend` | deterministic tests and offline development |
 | `JevCloudBackend` | hosted structured-decision reference |
-| `DjevLocalBackend` | local Jev-compatible DiffusionGemma structured-read reference |
+| `DjevLocalBackend` | local Jev-compatible diffusion structured-read reference |
 | `CrossEncoderDecisionBackend` | conventional generate-then-rank baseline |
 | `NativeDLMDecisionBackend` | project-owned diffusion structured-read path |
 
-Using `DjevLocalBackend` after DLM generation intentionally creates **two diffusion inference stages**. That is a baseline. The native path is designed to let one DLM runtime eventually support both open candidate generation and structured probabilistic reads.
-
-## How to read this repository
-
-Different documents have different audiences. Do not treat every Markdown file as interchangeable.
-
-- Start with this README if you want the project-level picture and the local workflow.
-- Read [`docs/research/PROJECT_DESCRIPTION.md`](docs/research/PROJECT_DESCRIPTION.md) for the research problem, use cases, strengths, limitations, novelty, and paper-oriented framing.
-- Read [`docs/design/ARCHITECTURE.md`](docs/design/ARCHITECTURE.md) for component ownership and runtime boundaries.
-- Read [`docs/design/DECISION_SEMANTICS.md`](docs/design/DECISION_SEMANTICS.md) before changing coverage, confidence, NOTA, or controller semantics.
-- Read [`docs/usage/LOCAL_SETUP.md`](docs/usage/LOCAL_SETUP.md) to run the supported local deployment shapes.
-- Repository development and release sequencing live only under [`docs/governance/`](docs/governance/README.md).
-- Coding agents should be pointed to [`agents/START_HERE.md`](agents/START_HERE.md), not asked to infer implementation policy from the README.
-
-A complete human-facing documentation map is in [`docs/README.md`](docs/README.md).
+When a DiffusionGemma generator is followed by `DjevLocalBackend`, the system performs **two diffusion inference stages**. That topology is a reference baseline. The target native path allows one project-controlled DLM runtime to expose both `generate()` and `structured_read()` modes.
 
 ## Local workflow
 
-The project supports four deployment shapes behind the same application interface:
-
-```text
-A. offline development
-   Fake/fixture generator -> MockDecisionBackend
-
-B. local generation + conventional ranker
-   local DiffusionGemma -> CrossEncoderDecisionBackend
-
-C. local generation + local Djev reference
-   local DiffusionGemma -> local Djev service
-
-D. local generation + hosted Jev reference
-   local DiffusionGemma -> JevCloudBackend
-
-E. native target architecture
-   one project-controlled DLM runtime -> generate() + structured_read()
-```
-
-Install the repository environment with:
+For CPU-only development:
 
 ```bash
 python -m venv .venv
 source .venv/bin/activate
 pip install -e ".[dev]"
-cp .env.example .env
+pytest
 ```
 
-Model servers are intentionally external to unit tests. Unit tests must run without a GPU, network connection, or API key.
+On Windows PowerShell:
 
-For service-specific setup, environment variables, and expected request flow, follow [`docs/usage/LOCAL_SETUP.md`](docs/usage/LOCAL_SETUP.md). Configuration semantics are documented in [`docs/usage/CONFIGURATION.md`](docs/usage/CONFIGURATION.md).
-
-## Project-native data flow
-
-The DLM does **not** own the final Jev/Djev wire format. It produces a backend-neutral `DecisionSpec`. The deterministic harness then validates and compiles it.
-
-This separation is intentional:
-
-```text
-DLM output
-   -> DecisionSpec
-   -> validation / normalization
-   -> candidate IDs A/B/C/...
-   -> synthetic NOTA
-   -> backend-specific request
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -e ".[dev]"
+pytest
 ```
 
-That means Jev, Djev, a cross-encoder, or a native diffusion read can be swapped without changing the generator's semantic output contract.
+The offline path uses a fake generator, mock backend, deterministic feedback compiler, and threshold controller. Real DiffusionGemma/Djev/Jev integrations are activated by later runtime profiles and do not belong in unit-test prerequisites.
 
-See [`docs/design/HARNESS.md`](docs/design/HARNESS.md) for the exact transformation pipeline.
+See [`docs/usage/LOCAL_SETUP.md`](docs/usage/LOCAL_SETUP.md) for deployment shapes and [`docs/usage/MODEL_RUNTIME.md`](docs/usage/MODEL_RUNTIME.md) for the real DLM serving plan.
 
-## Jev-compatible coverage and selection
+## How to read this repository
 
-For Jev-compatible backends, coverage is represented as a normal `noul` question and selection as a normal `choice` question. The project does not invent a fourth Jev question field.
+Different documents have different owners and audiences:
 
-Conceptually:
+- **Project overview / local entry point:** this `README.md`
+- **Research thesis, applications, strengths, limitations, contributions:** [`docs/research/PROJECT_DESCRIPTION.md`](docs/research/PROJECT_DESCRIPTION.md)
+- **Prior work and novelty boundaries:** [`docs/research/RELATED_WORK.md`](docs/research/RELATED_WORK.md)
+- **System component contracts:** [`docs/design/ARCHITECTURE.md`](docs/design/ARCHITECTURE.md)
+- **Coverage / selection / NOTA / controller semantics:** [`docs/design/DECISION_SEMANTICS.md`](docs/design/DECISION_SEMANTICS.md)
+- **Typed feedback protocol:** [`docs/design/FEEDBACK_PROTOCOL.md`](docs/design/FEEDBACK_PROTOCOL.md)
+- **Harness transformation rules:** [`docs/design/HARNESS.md`](docs/design/HARNESS.md)
+- **Version and release scope:** [`docs/governance/VERSION_CONTROL.md`](docs/governance/VERSION_CONTROL.md)
+- **Coding-agent entry point:** [`agents/START_HERE.md`](agents/START_HERE.md)
 
-```json
-{
-  "candidate_coverage": {
-    "type": "noul",
-    "instructions": "Does the candidate set contain at least one acceptable next action?"
-  },
-  "action": {
-    "type": "choice",
-    "instructions": "Choose the best acceptable next action.",
-    "criteria": {
-      "A": "...",
-      "B": "...",
-      "N": "None of the above"
-    }
-  }
-}
-```
-
-The normalized result keeps candidate-set adequacy and conditional selection confidence as separate fields. Mathematical definitions and calibration rules live in [`docs/design/DECISION_SEMANTICS.md`](docs/design/DECISION_SEMANTICS.md).
+The complete document ownership map is in [`docs/README.md`](docs/README.md).
 
 ## Repository layout
 
 ```text
 DiCoJev/
-├── README.md                       # public GitHub landing page
+├── README.md
 ├── pyproject.toml
-├── configs/                        # executable configuration profiles
+├── configs/
 ├── docs/
-│   ├── README.md                   # human documentation map
-│   ├── research/                   # research story and paper starting point
-│   ├── design/                     # normative system contracts
-│   ├── usage/                      # local operation and configuration
-│   ├── governance/                 # versioning and contribution policy
-│   └── reference/                  # glossary and external references
+│   ├── README.md
+│   ├── research/
+│   ├── design/
+│   ├── usage/
+│   ├── governance/
+│   └── reference/
 ├── agents/
-│   ├── START_HERE.md               # coding-agent entry point
-│   ├── EXECUTION_PROTOCOL.md       # machine-oriented working rules
-│   └── tasks/                      # implementation tasks by release milestone
-├── src/DiCoJev/
+│   ├── START_HERE.md
+│   ├── EXECUTION_PROTOCOL.md
+│   └── tasks/
+├── src/dicojev/
 ├── tests/
 ├── benchmarks/
 ├── examples/
@@ -217,8 +146,15 @@ DiCoJev/
 └── .github/
 ```
 
-## Research documentation
+## Jev-compatible decision read
 
-The public README intentionally stops at project-level understanding and usage. For the complete research thesis—including application scenarios, limitations, comparison with Djev/Jev/generate-rank systems, explicit non-novel claims, proposed contributions, research hypotheses, and paper framing—read:
+For Jev-compatible backends, DiCoJev compiles coverage and selection into ordinary structured questions rather than changing the Jev wire model:
 
-**[`docs/research/PROJECT_DESCRIPTION.md`](docs/research/PROJECT_DESCRIPTION.md)**
+```text
+coverage  -> noul
+selection -> choice
+```
+
+Typed feedback is **not** a fourth Jev field. Backend evidence is normalized first; the project-owned controller and `FeedbackCompiler` then produce the next-loop feedback signal.
+
+For the full research framing, start with [`docs/research/PROJECT_DESCRIPTION.md`](docs/research/PROJECT_DESCRIPTION.md).

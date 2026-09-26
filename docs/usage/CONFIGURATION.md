@@ -1,18 +1,16 @@
 # Configuration Reference
 
-This file owns the meaning of repository configuration keys. Configuration files instantiate design choices; they do not redefine system semantics.
+This file owns repository configuration-key meanings. Config files instantiate design choices; they do not redefine semantics.
 
-## 1. `project`
+## `project`
 
 ```yaml
 project:
-  name: diffusion-decision
+  name: dicojev
   environment: local
 ```
 
-Metadata only. Release metadata may be maintained by governance tooling but does not change decision semantics.
-
-## 2. `model`
+## `model`
 
 ```yaml
 model:
@@ -24,14 +22,7 @@ model:
   max_candidates: 8
 ```
 
-- `generator_kind`: implementation selected for candidate generation.
-- `generator_model`: model identifier.
-- `deployment`: local/remote implementation hint.
-- `base_url`: service endpoint when generation is served out of process.
-- `timeout_seconds`: hard request timeout.
-- `max_candidates`: per-generation candidate limit before controller-level total budgets.
-
-## 3. `decision_backend`
+## `decision_backend`
 
 ```yaml
 decision_backend:
@@ -41,9 +32,7 @@ decision_backend:
   timeout_seconds: 30
 ```
 
-Supported backend names are implementation registrations, not architecture constants. Provider credentials belong in environment variables/secrets.
-
-## 4. `controller`
+## `controller`
 
 ```yaml
 controller:
@@ -56,9 +45,22 @@ controller:
   allow_escalate: true
 ```
 
-Threshold values are experimental defaults, not universal safety guarantees. Their semantic inputs are defined only in `docs/design/DECISION_SEMANTICS.md`.
+Thresholds are experimental defaults, not universal guarantees.
 
-## 5. `telemetry`
+## `feedback`
+
+```yaml
+feedback:
+  compiler: deterministic_templates
+  max_signals_per_round: 3
+  default_expand_count: 3
+  allow_freeform_reasoning: false
+  record_serialized_size: true
+```
+
+Canonical code meanings live only in `docs/design/FEEDBACK_PROTOCOL.md`.
+
+## `telemetry`
 
 ```yaml
 telemetry:
@@ -67,29 +69,14 @@ telemetry:
   log_images: false
   preserve_raw_scores: true
   preserve_calibrated_scores: true
+  log_feedback_codes: true
+  log_feedback_size: true
 ```
 
-Raw images should remain disabled by default. Raw and calibrated model scores should be preserved as distinct values.
+## Secrets
 
-## 6. Environment secrets
+Hosted provider credentials such as `JEV_API_KEY` belong only in environment variables/secrets.
 
-Examples:
+## Profiles
 
-```text
-JEV_API_KEY
-```
-
-Secrets must never appear in committed YAML, tests, examples, or telemetry fixtures.
-
-## 7. Profile convention
-
-Repository profiles under `configs/` should be named by deployment intent, for example:
-
-```text
-default.yaml
-local_djev.yaml
-local_cross_encoder.yaml
-local_native_dlm.yaml
-```
-
-Profiles under `configs/versions/` are development/reproducibility snapshots and are governed by `docs/governance/VERSION_CONTROL.md`; they are not the conceptual source of truth for system semantics.
+Deployment profiles under `configs/` may select mock, Djev, cross-encoder, or native DLM paths. Version snapshots under `configs/versions/` are governed by `VERSION_CONTROL.md` and are not semantic sources of truth.

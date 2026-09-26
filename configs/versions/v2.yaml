@@ -6,3 +6,7 @@ controller:
   meta_actions: [act, expand, abstain, escalate]
   max_expansions: 2
   max_total_candidates: 16
+feedback:
+  compiler: deterministic_templates
+  typed_codes: true
+  record_serialized_size: true

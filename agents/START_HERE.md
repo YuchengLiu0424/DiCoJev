@@ -1,52 +1,48 @@
 # Coding Agent: Start Here
 
-You are implementing this repository, not redesigning its research story.
+You are implementing **DiCoJev**, not redesigning its research story.
 
-## 1. Read order
+## Read order
 
-Before writing code, read exactly these sources in order:
+Before writing code, read in this order:
 
-1. `docs/README.md` — learn which document owns each concept.
-2. `docs/governance/VERSION_CONTROL.md` — identify the active milestone and its allowed scope.
-3. `docs/design/ARCHITECTURE.md` — understand component boundaries.
-4. `docs/design/DECISION_SEMANTICS.md` — understand coverage/selection/NOTA/controller invariants.
-5. `docs/design/BACKENDS.md` and/or `docs/design/HARNESS.md` if the active task touches those components.
-6. the matching `agents/tasks/vN.md` — execute the implementation checklist for the active milestone.
-7. `agents/EXECUTION_PROTOCOL.md` — follow testing, status, and handoff rules.
+1. `docs/README.md` — document ownership.
+2. `docs/governance/VERSION_CONTROL.md` — active milestone and allowed scope.
+3. `docs/design/ARCHITECTURE.md` — component boundaries.
+4. `docs/design/DECISION_SEMANTICS.md` — coverage/selection/NOTA/controller invariants.
+5. `docs/design/FEEDBACK_PROTOCOL.md` — typed feedback and loop invariants.
+6. `docs/design/BACKENDS.md` and/or `docs/design/HARNESS.md` as required.
+7. matching `agents/tasks/vN.md` — implementation checklist.
+8. `agents/EXECUTION_PROTOCOL.md` — testing and handoff rules.
 
-Do **not** use the root README as an implementation specification. It is a public project overview.
+Do not use the root README as an implementation specification.
 
-## 2. Source-of-truth rule
-
-Agent files do not define research semantics or release scope. If an agent task appears to conflict with a human-owned authoritative doc, stop the conflicting implementation and follow the human-owned doc.
-
-Authority order:
+## Authority order
 
 ```text
-docs/governance/VERSION_CONTROL.md   -> milestone scope
-
-docs/design/*                        -> technical contracts
-
-docs/research/*                      -> research claims/evaluation framing
-
-docs/usage/*                         -> operator-facing setup
-
-agents/*                              -> execution instructions only
+docs/governance/VERSION_CONTROL.md -> milestone scope
+docs/design/*                      -> technical contracts
+docs/research/*                    -> research/evaluation claims
+docs/usage/*                       -> operator setup
+agents/*                            -> execution instructions only
 ```
 
-## 3. Scope rule
+## Scope rule
 
-Implement one active milestone only. Do not pull a later feature forward because it is convenient or interesting. If a new idea is outside the declared plan, record it as a v6+ note rather than changing the current architecture.
+Implement one active milestone only. Do not pull later-version features forward unless required by a current invariant or bug/interface correction.
 
-## 4. Non-negotiable implementation invariants
+## Non-negotiable invariants
 
+- `DecisionSpec` stays backend-neutral.
 - Jev/Djev wire schemas stay inside adapters/compilers.
-- `DecisionSpec` remains backend-neutral.
 - `q_cov` and `q_sel` remain distinct.
-- NOTA remains distinct from ABSTAIN/EXPAND/ESCALATE.
-- `DjevLocalBackend` is measured as a separate diffusion read after DLM generation.
+- candidate quality remains distinct from both.
+- NOTA remains distinct from controller meta-actions.
+- feedback is typed and bounded; it is not free-form chain-of-thought.
+- feedback is not a fourth Jev schema component.
+- `FeedbackCompiler` does not decide whether to EXPAND; the controller does.
+- DLM + Djev is measured as two diffusion stages.
+- raw/calibrated scores remain separate.
 - unit tests require no GPU/network/key.
-- raw and calibrated scores remain separate.
-- images are not logged by default.
-- unsupported multimodal capability must be explicit; never silently call caption-only processing “native multimodal”.
-- failures that invalidate decision evidence must fail closed rather than default to ACT.
+- unsupported multimodal capability is explicit.
+- evidence/infrastructure failures fail closed.

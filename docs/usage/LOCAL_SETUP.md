@@ -35,6 +35,7 @@ Use:
 Fake/fixture CandidateGenerator
 MockDecisionBackend
 Threshold RiskController
+Deterministic FeedbackCompiler
 ```
 
 Purpose:
@@ -145,12 +146,15 @@ Regardless of backend:
 2. generator produces DecisionSpec
 3. harness validates and normalizes candidates
 4. backend estimates coverage + selection
-5. controller returns ACT/EXPAND/ABSTAIN/ESCALATE
-6. if EXPAND, return to step 2 with ExpansionContext
-7. if ACT, caller executes the semantic action
+5. controller returns meta-action + typed FeedbackBundle
+6. FeedbackCompiler builds LoopContext
+7. if EXPAND, return to step 2 with compiled feedback and prior candidates
+8. if ACT, caller executes the semantic action
 ```
 
 The decision system does not silently execute tools unless the caller has explicitly connected an execution layer.
+
+For the real model-serving plan, see `docs/usage/MODEL_RUNTIME.md`.
 
 ## 9. Troubleshooting principles
 
@@ -159,3 +163,14 @@ The decision system does not silently execute tools unless the caller has explic
 - If Djev labels fail tokenization, fix backend label compilation; do not rewrite candidate semantics.
 - If multimodal support is unavailable for a backend, report a capability mismatch or run an explicitly named text/caption baseline.
 - If a model service is unavailable, fail closed rather than returning ACT from stale/default scores.
+
+
+## Windows PowerShell base environment
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -e ".[dev]"
+Copy-Item .env.example .env
+pytest
+```

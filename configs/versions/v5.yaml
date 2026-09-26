@@ -9,4 +9,5 @@ runtime:
   share_multimodal_preprocessing: true
   reuse_context_when_equivalent: true
 controller: {policy: adaptive_compute}
+feedback: {compiler: typed_low_bandwidth, expose_trace: true}
 api: {enabled: true, endpoint: /v1/decide}

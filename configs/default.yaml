@@ -1,5 +1,5 @@
 project:
-  name: diffusion-decision
+  name: dicojev
   milestone: v0
   package_version: 0.1.0
   environment: local
@@ -27,9 +27,18 @@ controller:
   allow_abstain: true
   allow_escalate: true
 
+feedback:
+  compiler: deterministic_templates
+  max_signals_per_round: 3
+  default_expand_count: 3
+  allow_freeform_reasoning: false
+  record_serialized_size: true
+
 telemetry:
   enabled: true
   log_raw_text: false
   log_images: false
   preserve_raw_scores: true
   preserve_calibrated_scores: true
+  log_feedback_codes: true
+  log_feedback_size: true
