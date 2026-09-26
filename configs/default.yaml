@@ -1,0 +1,35 @@
+project:
+  name: diffusion-decision
+  milestone: v0
+  package_version: 0.1.0
+  environment: local
+
+model:
+  generator_kind: fake
+  generator_model: google/diffusiongemma-26B-A4B-it
+  deployment: local
+  base_url: http://127.0.0.1:8000
+  timeout_seconds: 60
+  max_candidates: 8
+
+decision_backend:
+  kind: mock
+  base_url: null
+  model: null
+  timeout_seconds: 30
+
+controller:
+  policy: threshold
+  min_coverage: 0.75
+  min_selection_confidence: 0.70
+  max_expansions: 2
+  max_total_candidates: 16
+  allow_abstain: true
+  allow_escalate: true
+
+telemetry:
+  enabled: true
+  log_raw_text: false
+  log_images: false
+  preserve_raw_scores: true
+  preserve_calibrated_scores: true

@@ -1,0 +1,9 @@
+project: {milestone: v1, package_version: 0.2.0}
+model:
+  generator_kind: diffusiongemma
+  generator_model: google/diffusiongemma-26B-A4B-it
+  deployment: local
+decision_backend:
+  kind: djev_local
+  allowed: [jev_cloud, djev_local, cross_encoder, mock]
+controller: {policy: threshold}

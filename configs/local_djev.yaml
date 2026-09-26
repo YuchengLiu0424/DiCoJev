@@ -1,0 +1,14 @@
+project:
+  milestone: v1+
+  role: reference_baseline
+model:
+  generator: google/diffusiongemma-26B-A4B-it
+  deployment: local
+  base_url: http://127.0.0.1:8000
+decision_backend:
+  kind: djev_local
+  base_url: http://127.0.0.1:8011
+  model: dgemma
+  timeout_seconds: 30
+notes:
+  two_dlm_stage_pipeline: true

@@ -1,0 +1,10 @@
+project: {milestone: v4, package_version: 0.5.0}
+model: {generator_kind: diffusiongemma, multimodal: true}
+decision_backend: {kind: native_dlm}
+calibration:
+  enabled: true
+  coverage_method: logistic
+  selection_method: temperature
+controller:
+  policy: adaptive_compute
+  objective: risk_latency_cost

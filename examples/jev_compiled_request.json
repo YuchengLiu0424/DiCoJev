@@ -1,0 +1,30 @@
+{
+  "model": "dgemma",
+  "state": {
+    "goal": "Send the edited document",
+    "observation": "The compose screen is open.",
+    "candidate_set": {
+      "A": "Review recipients",
+      "B": "Click Send"
+    }
+  },
+  "questions": {
+    "candidate_coverage": {
+      "type": "noul",
+      "instructions": "Does the candidate set contain at least one acceptable next action?",
+      "criteria": {
+        "true": "At least one candidate is acceptable.",
+        "false": "No candidate is acceptable or a necessary action is missing."
+      }
+    },
+    "action": {
+      "type": "choice",
+      "instructions": "Choose the best next action. Choose N if none is acceptable.",
+      "criteria": {
+        "A": "Review recipients",
+        "B": "Click Send",
+        "N": "None of the above"
+      }
+    }
+  }
+}

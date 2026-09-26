@@ -1,0 +1,8 @@
+project: {milestone: v2, package_version: 0.3.0}
+model: {generator_kind: diffusiongemma, multimodal: true}
+decision_backend: {kind: djev_local, require_declared_modality_support: true}
+controller:
+  policy: coverage_closed_loop
+  meta_actions: [act, expand, abstain, escalate]
+  max_expansions: 2
+  max_total_candidates: 16

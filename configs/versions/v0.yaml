@@ -1,0 +1,4 @@
+project: {milestone: v0, package_version: 0.1.0}
+model: {generator_kind: fake}
+decision_backend: {kind: mock}
+controller: {policy: threshold, min_coverage: 0.75, min_selection_confidence: 0.70, max_expansions: 2}
