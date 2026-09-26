@@ -1,12 +1,10 @@
 # Version Control and Release Plan
 
-This is the single authoritative source for planned repository versions, branch sequencing, milestone scope, and release acceptance gates.
-
-The README must not duplicate this roadmap. Coding-agent task files may translate a milestone into implementation steps but may not redefine milestone scope.
+This is the single authoritative source for planned versions, branch sequencing, milestone scope, and acceptance gates. The root README must not duplicate this roadmap.
 
 ## 1. Git policy
 
-Each milestone is developed from the latest `main` using exactly one integration branch:
+Each milestone is developed from the latest `main` using one integration branch:
 
 ```text
 version/v0
@@ -17,52 +15,38 @@ version/v4
 version/v5
 ```
 
-The normal flow is:
+Normal flow:
 
 ```text
-main
-  -> version/vN
-  -> implementation + tests + docs
-  -> integration PR
-  -> merge to main
-  -> tag vN
-  -> branch version/vN+1 from updated main
+main -> version/vN -> implementation/tests/docs -> PR -> main -> tag vN
 ```
 
-Do not start the next milestone branch from an unmerged predecessor.
+Do not start `version/vN+1` from an unmerged predecessor.
 
-## 2. Scope freeze rule
+## 2. Scope freeze
 
-The complete intended program through `v5` is declared below.
+The intended program through v5 is declared below. New research capabilities discovered during implementation belong in a v6+ ADR unless they correct a bug/safety/interface defect or are necessary to realize an already declared capability.
 
-A newly discovered idea during implementation can enter the active milestone only if it is:
+## 3. Cross-version invariants
 
-1. a bug/safety/interface correction required to satisfy an existing contract; or
-2. an implementation detail necessary for an already declared capability.
-
-A genuinely new research capability belongs in a recorded `v6+` backlog/ADR. It must not silently expand the active milestone.
-
-## 3. Stable cross-version invariants
-
-These rules apply throughout the project:
-
-- architecture = DLM CandidateGenerator + deterministic Harness + pluggable DecisionBackend + RiskController;
-- Jev and Djev are reference backends, not mandatory project dependencies;
+- architecture = DLM CandidateGenerator + DecisionHarness + pluggable DecisionBackend + RiskController + typed FeedbackCompiler/LoopContext;
+- Jev and Djev are optional reference backends;
 - DLM generation followed by Djev is a two-diffusion-stage baseline;
-- candidate-set adequacy and within-set selection are different quantities;
-- candidate quality is distinct from both;
+- `q_cov`, `q_sel`, and candidate quality are distinct;
 - raw and calibrated scores are distinct;
-- NOTA is backend evidence, not identical to ABSTAIN/EXPAND/ESCALATE;
-- images remain first-class for native multimodal evaluations;
-- unit tests do not require GPU/network/keys;
-- credentials are never committed;
-- provider wire formats do not become the canonical `DecisionSpec`.
+- NOTA is backend evidence, not a controller action;
+- feedback codes are typed project-level signals, not free-form chain-of-thought;
+- feedback is not a fourth Jev question component;
+- images remain first-class for native multimodal evaluation;
+- unit tests require no GPU/network/API keys;
+- provider wire formats do not become canonical `DecisionSpec` fields;
+- infrastructure/evidence failures fail closed.
 
-Detailed semantics are owned by `docs/design/` and are linked rather than repeated here.
+Detailed semantics are owned by `docs/design/`.
 
 ---
 
-# v0 — Protocol and Deterministic Harness
+# v0 — Protocol, Deterministic Harness, and Typed Feedback Loop
 
 **Package target:** `0.1.0`  
 **Branch:** `version/v0`  
@@ -70,33 +54,37 @@ Detailed semantics are owned by `docs/design/` and are linked rather than repeat
 
 ## Scope
 
-Establish an installable CPU-only reference implementation of the stable schemas and orchestration interfaces:
+Create an installable CPU-only reference implementation of:
 
 - public request/response schemas;
-- `DecisionSpec`;
-- `CandidateGenerator` protocol;
-- `DecisionBackend` protocol and capability flags;
-- `RiskController` protocol;
-- deterministic fake generator;
-- deterministic mock backend;
-- JSON extraction/repair interface;
-- candidate normalization/dedupe/ID allocation;
-- NOTA injection;
-- Jev-compatible compiler for coverage + selection;
+- `DecisionSpec`, candidates, budgets, traces;
+- `CandidateGenerator`, `DecisionBackend`, `RiskController`, `EscalationTarget` protocols;
+- deterministic fake generator and mock backend;
+- JSON extraction/bounded repair;
+- candidate normalize/dedupe/stable-ID registry;
+- tool/constraint validation stubs;
+- synthetic NOTA injection;
+- Jev-compatible coverage + selection compiler;
 - normalized backend result;
-- deterministic threshold controller;
-- round trace and telemetry contracts.
+- `FeedbackCode`, `FeedbackSignal`, `FeedbackBundle`, `LoopContext`;
+- deterministic `FeedbackCompiler`;
+- threshold controller capable of all four meta-actions and typed feedback;
+- at least one fully offline EXPAND -> feedback -> regenerate -> reevaluate loop;
+- telemetry including feedback code and payload-size fields.
 
 ## Acceptance gate
 
-- package imports on CPU-only environment;
+- package imports CPU-only;
 - `pytest` passes without GPU/network/API keys;
-- all four controller actions can be generated by deterministic fixtures;
-- exact Jev-compatible request compilation has snapshot tests;
+- ACT/EXPAND/ABSTAIN/ESCALATE all occur in deterministic fixtures;
+- exact Jev compilation has snapshot tests;
 - invalid/empty candidate cases fail closed;
-- provider-specific fields do not leak into `DecisionSpec`;
-- raw/calibrated score nullability follows `DECISION_SEMANTICS.md`;
-- local offline example demonstrates the whole orchestration flow.
+- provider fields do not leak into `DecisionSpec`;
+- `q_cov` is never silently derived from `q_sel`;
+- raw/calibrated nullability follows decision semantics;
+- feedback vocabulary validates strictly;
+- `FeedbackCompiler` has deterministic snapshot tests;
+- offline example demonstrates at least one typed-feedback expansion round and stable candidate IDs.
 
 ---
 
@@ -108,28 +96,29 @@ Establish an installable CPU-only reference implementation of the stable schemas
 
 ## Scope
 
-Activate a real local DLM generator and interchangeable decision backends:
-
-- `DiffusionGemmaGenerator` using `google/diffusiongemma-26B-A4B-it` by default;
-- local serving client, timeout/cancellation, generation telemetry;
-- robust project-native `DecisionSpec` generation;
+- local `DiffusionGemmaGenerator` using `google/diffusiongemma-26B-A4B-it` by default;
+- documented fresh-machine model-serving path, model cache, health check, and smoke test;
+- configurable local generator client with timeout/cancellation/telemetry;
+- generator consumption of typed `LoopContext` / compiled feedback;
+- robust `DecisionSpec` generation;
 - `JevCloudBackend`;
 - `DjevLocalBackend`;
 - `CrossEncoderDecisionBackend`;
 - backend capability negotiation;
 - config-only backend selection;
-- text-only end-to-end executable examples;
-- latency decomposition by generator/backend/harness.
+- text-only real-model end-to-end examples;
+- latency decomposition including feedback compilation and repeated generation.
 
 ## Acceptance gate
 
-- local DLM produces valid candidate specs across smoke fixtures;
-- same normalized candidate set can be passed to all compatible backends;
-- Jev credentials remain optional and environment-only;
-- Djev is called through a local adapter rather than vendored into core code;
-- Djev two-DLM-stage topology is measurable in telemetry;
-- CrossEncoder coverage method is explicitly separate from top-1 ranking confidence;
-- mock backend remains the default unit-test dependency.
+- documented local DLM serving path reaches a successful candidate-generation smoke test;
+- real generator can consume an expansion `LoopContext` without paraphrasing all prior candidates in controlled fixtures;
+- same normalized set can reach all compatible backends;
+- Jev credentials remain optional/environment-only;
+- Djev is accessed through a local adapter, not vendored into core;
+- two-DLM-stage topology is measurable;
+- cross-encoder coverage method remains separate from ranking confidence;
+- mock backend remains default unit-test dependency.
 
 ---
 
@@ -141,28 +130,26 @@ Activate a real local DLM generator and interchangeable decision backends:
 
 ## Scope
 
-Turn generated-set uncertainty into actual agent behavior:
-
 - first-class image references/bytes/data URLs in `MultimodalState`;
-- native image transport to supported DLM/backend paths;
-- backend modality capability checks;
-- multi-round `EXPAND` loop;
-- stable candidate identity across expansions;
-- explicit expansion budgets and latency budgets;
-- typed `EscalationRequest` and mock escalation target;
-- candidate-quality flags for format/tool/constraint/redundancy;
-- multimodal and candidate-deletion integration fixtures;
-- per-round decision trace.
+- native image transport to supported generator/backend paths;
+- modality capability checks;
+- multi-round EXPAND loop with stable IDs;
+- explicit candidate, expansion, latency, and compute budgets;
+- candidate-quality flags;
+- typed feedback generation for candidate omission, redundancy, tool mismatch, constraint failure, ambiguity, and insufficient information;
+- multimodal/candidate-deletion controlled fixtures;
+- per-round trace including feedback bandwidth.
 
 ## Acceptance gate
 
 - text+image state reaches the DLM generator natively;
-- at least one decision path can consume equivalent multimodal evidence without silent caption-only substitution;
-- removing acceptable candidates causes a measurable deterioration in coverage evidence over labeled fixtures;
-- coverage-aware routing changes behavior away from forced ACT on some inadequate sets;
-- EXPAND can recover a missing acceptable candidate on at least one controlled task;
-- ACT/EXPAND/ABSTAIN/ESCALATE all occur in integration tests;
-- per-round and total latency are reported.
+- at least one decision path consumes equivalent multimodal evidence without silent caption-only substitution;
+- removing acceptable candidates measurably degrades coverage evidence;
+- coverage-aware routing avoids forced ACT on inadequate sets;
+- typed `MISSING_ACTION` feedback recovers an omitted acceptable action on controlled tasks;
+- at least two other feedback codes change regeneration behavior in the intended direction;
+- all four controller actions occur in integration tests;
+- per-round/total latency and feedback tokens/bytes are reported.
 
 ---
 
@@ -174,31 +161,29 @@ Turn generated-set uncertainty into actual agent behavior:
 
 ## Scope
 
-Remove Djev as a required implementation dependency for diffusion decision reads:
-
-- `NativeDLMDecisionBackend` behind the existing backend interface;
+- `NativeDLMDecisionBackend` behind the existing interface;
 - deterministic read template/canvas construction;
-- candidate-label token validation;
+- compact candidate-label validation;
 - binary coverage read;
 - categorical selection read;
 - probability/logit extraction and normalization;
 - read diagnostics;
 - same-process/model-weight use where runtime permits;
-- comparative benchmark against DjevLocal and CrossEncoder;
-- Djev and Jev adapters remain available as baselines.
+- comparison against DjevLocal and CrossEncoder;
+- existing feedback/controller loop remains unchanged above the backend abstraction.
 
 ## Acceptance gate
 
-- native backend produces normalized `DecisionBackendResult` without calling a Djev server;
-- coverage and selection reads are reproducible within documented stochastic tolerance;
+- normalized native backend result without a Djev server;
+- reproducible coverage/selection reads within documented tolerance;
 - token/label failures are caught before unsafe reads;
-- native backend agrees with fixture expectations and has benchmarkable latency/memory;
-- comparison includes DjevLocal and CrossEncoder under matched candidate sets;
-- no public API change is required to switch from DjevLocal to NativeDLMRead.
+- backend switching requires no public API change;
+- comparison includes DjevLocal/CrossEncoder under matched candidate sets;
+- typed feedback behavior remains backend-neutral.
 
 ---
 
-# v4 — Calibration, Learned Coverage, Candidate Quality, Adaptive Compute
+# v4 — Calibration, Learned Coverage, Feedback Policy, and Adaptive Compute
 
 **Package target:** `0.5.0`  
 **Branch:** `version/v4`  
@@ -206,30 +191,30 @@ Remove Djev as a required implementation dependency for diffusion decision reads
 
 ## Scope
 
-Build the research-grade uncertainty and policy layer:
-
-- calibration dataset format;
-- temperature/logistic/isotonic calibrators as appropriate;
+- calibration dataset format and calibrators;
 - calibration metadata/versioning;
 - learned coverage estimator(s);
-- independent/decorrelated coverage verifier experiment;
+- independent/decorrelated coverage-verifier experiment;
 - learned candidate-quality features;
-- candidate deletion/distractor/redundancy benchmark generator;
+- controlled candidate-set corruption benchmark generator;
 - NOTA-aware calibration analysis;
-- conformal/repeated-generation comparison where applicable;
-- cost-aware controller using risk + latency/compute budget;
+- conformal/repeated-generation comparison where appropriate;
+- learned or calibrated feedback-code policy while preserving typed protocol;
+- typed feedback vs binary retry vs long-form feedback comparison;
+- cost-aware controller using risk + latency/compute/token budget;
 - fast/slow routing experiments;
-- reliability diagrams and risk-latency curves.
+- reliability, risk-latency, and risk-latency-token curves.
 
 ## Acceptance gate
 
-- raw and calibrated values are both preserved and reproducible;
-- held-out calibration metrics are reported;
-- coverage estimator is evaluated directly against candidate-set adequacy labels;
-- same-backbone versus independent-verifier failure correlation is measured;
-- adaptive compute is compared against fixed candidate budgets;
-- candidate quality and coverage ablations are reported separately;
-- evaluation scripts can recreate all core research tables/plots from recorded run artifacts.
+- raw and calibrated values are reproducible and separate;
+- held-out coverage calibration metrics are reported;
+- coverage estimator is evaluated against candidate-set adequacy labels;
+- same-backbone vs independent-verifier correlation is measured;
+- typed feedback recovery/token efficiency is compared against named baselines;
+- adaptive compute is compared with fixed budgets;
+- candidate quality, coverage, and feedback ablations are reported separately;
+- evaluation scripts recreate core research tables/plots from run artifacts.
 
 ---
 
@@ -241,59 +226,45 @@ Build the research-grade uncertainty and policy layer:
 
 ## Scope
 
-Integrate the complete system as a coherent research-grade runtime:
-
-- one project-controlled multimodal DLM runtime supporting generation and structured read modes;
-- shared model weights/process;
-- shared multimodal preprocessing where valid;
-- measured context/state reuse where technically safe;
+- one project-controlled multimodal DLM runtime supporting generation and structured read;
+- shared model weights/process and safe preprocessing/state reuse where valid;
 - stable `/v1/decide`-style project API;
 - tool/environment execution boundary;
+- full typed feedback loop exposed in traces;
 - action-result/environment-transition trace;
 - full text + multimodal benchmark suite;
 - all reference backends retained for reproduction;
-- end-to-end p50/p95 latency and GPU memory evaluation;
-- risk–latency Pareto comparison;
-- reproducible experiment configs and release documentation.
+- end-to-end p50/p95 latency, GPU memory, feedback token, and risk-latency-token evaluation;
+- reproducible configs and release documentation.
 
 ## Acceptance gate
 
-- one runtime can execute both candidate generation and project-owned structured read;
-- no Djev/Jev dependency is required for the primary local path;
-- shared-runtime optimizations have before/after latency and memory measurements;
-- safety/correctness equivalence is checked for any reused state/cache;
-- public API supports ACT/EXPAND/ABSTAIN/ESCALATE traces;
-- complete benchmark reproduces main research claims;
-- clean installation and documented local demo succeed from a fresh environment;
-- repository documentation is internally consistent under the ownership map in `docs/README.md`.
+- one runtime executes both candidate generation and project-owned structured read;
+- primary local path requires no Jev/Djev dependency;
+- shared-runtime optimizations have before/after measurements;
+- safety/correctness equivalence is checked for reused state/cache;
+- public API supports ACT/EXPAND/ABSTAIN/ESCALATE plus typed feedback traces;
+- full benchmark reproduces main research claims;
+- clean installation and local demo succeed from a fresh environment;
+- documentation passes the ownership-map consistency check.
 
 ## 4. Release PR checklist
 
-Every milestone integration PR must confirm:
+Every milestone PR confirms:
 
 ```text
-[ ] milestone scope matches this document
-[ ] implementation task file completed
-[ ] unit tests pass offline
-[ ] relevant integration tests pass or are explicitly hardware-gated
-[ ] authoritative design docs updated if contracts changed
-[ ] no duplicated normative text introduced
-[ ] configs/examples match implemented behavior
+[ ] scope matches this document
+[ ] matching agent task completed
+[ ] offline unit tests pass
+[ ] relevant integration tests pass or are hardware-gated
+[ ] authoritative docs updated only when contracts changed
+[ ] no duplicated normative definitions introduced
+[ ] configs/examples match behavior
 [ ] changelog updated
-[ ] secrets/model weights/raw private data are absent
-[ ] next-milestone capabilities were not pulled forward without a contract reason
+[ ] no secrets/model weights/private raw data
+[ ] no undeclared later-milestone scope
 ```
 
-## 5. v6+ backlog rule
+## 5. v6+ rule
 
-New research directions discovered after this plan is frozen should be recorded as short ADR/backlog entries containing:
-
-```text
-problem
-motivation
-why it is outside v0-v5
-interfaces affected
-required experiments
-```
-
-Do not modify the meaning of an already tagged milestone retroactively.
+New research directions outside this plan should be recorded as ADR/backlog entries with problem, motivation, affected interfaces, and required experiments. Tagged milestone meaning is never retroactively changed.

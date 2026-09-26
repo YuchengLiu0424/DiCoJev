@@ -7,3 +7,4 @@ decision_backend:
   kind: djev_local
   allowed: [jev_cloud, djev_local, cross_encoder, mock]
 controller: {policy: threshold}
+feedback: {compiler: deterministic_templates, generator_consumes_loop_context: true}

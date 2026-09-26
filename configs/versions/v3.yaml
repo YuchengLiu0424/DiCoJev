@@ -4,3 +4,4 @@ decision_backend:
   kind: native_dlm
   allowed: [native_dlm, djev_local, jev_cloud, cross_encoder, mock]
 controller: {policy: coverage_closed_loop}
+feedback: {compiler: deterministic_templates, backend_neutral: true}

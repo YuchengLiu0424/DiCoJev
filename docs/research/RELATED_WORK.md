@@ -1,79 +1,62 @@
 # Related Work and Novelty Boundaries
 
-This file owns comparisons to prior systems and the boundaries of novelty claims. The project description may summarize these comparisons but should point here for citation-level detail.
+This file owns the project's comparison claims and explicit non-novelty boundaries.
 
-## 1. Jev-style structured decision models
+## 1. Jev-style structured decision
 
-Jev exposes typed `choice`, `score`, and `noul` questions. Each question includes `type`, `instructions`, and type-specific `criteria`; choice returns probabilities/confidence and noul returns a yes-probability. This is a strong reference for software-oriented structured decision APIs.
+Jev provides structured decision primitives over supplied state/questions/criteria. DiCoJev uses Jev as a reference backend and API style; it does not claim to invent compact structured decisions.
 
-Relevant source: https://jevmodel.net/docs
+Reference: https://jevmodel.net/docs
 
-**Relationship to this project:** Jev assumes the caller supplies the question/options. Diffusion Decision adds open candidate construction and models uncertainty about whether the generated option set is sufficient.
+## 2. Djev
 
-## 2. Djev / diffusion structured reads
+Djev demonstrates Jev-style structured reads on DiffusionGemma and provides a useful local reference implementation. DiCoJev does not claim the structured diffusion read primitive itself as new.
 
-Djev implements Jev-style `/v1/systemone` decisions over DiffusionGemma. Its structured-read mechanism uses seeded canvases, pinned positions, read-only diffusion, and answer-slot log probabilities; current documentation also describes image input. Choice labels are constrained by tokenization in the structured answer template.
+Reference: https://github.com/mmastrac/djev
 
-Relevant source: https://github.com/mmastrac/djev
+The project distinction is that DiCoJev owns the broader generated-action-set loop: candidate generation, candidate-set adequacy, controller policy, typed feedback, and regeneration.
 
-**Relationship to this project:** Djev is a reference backend and technical precedent for native diffusion structured reads. `DLM generator + Djev` is explicitly a two-diffusion-stage baseline. The project later owns its structured-read implementation and studies shared-runtime coupling.
+## 3. Generate -> rank / verify / select
 
-## 3. DiffusionGemma
+Generating candidates and then using a verifier/ranker is a mature pattern. DiCoJev must not claim novelty merely from placing a DLM generator before a selector.
 
-Google introduced DiffusionGemma as an experimental 26B MoE diffusion model aimed at fast text generation. The current model distribution supports image-text-to-text usage and local serving paths, including Transformers/vLLM documentation.
+## 4. NOTA / rejection
 
-Relevant sources:
+None-of-the-above and selective rejection mechanisms already exist. DiCoJev uses NOTA as one evidence source but distinguishes it from candidate-set coverage and controller actions.
 
-- https://blog.google/innovation-and-ai/technology/developers-tools/diffusion-gemma-faster-text-generation/
-- https://huggingface.co/google/diffusiongemma-26B-A4B-it
+## 5. Candidate-set coverage and conformal generation
 
-**Relationship to this project:** DiffusionGemma is the default research backbone, not an architectural hard dependency.
+Prior work studies set coverage/miscoverage and stopping/repeated generation. DiCoJev does not claim to invent candidate-set coverage. Its focus is the runtime integration of set-adequacy evidence with low-latency multimodal DLM generation, structured readout, and typed feedback-controlled refinement.
 
-## 4. Generate → rank / verify → select
+## 6. Generative action sets
 
-Candidate generation followed by specialized ranking or verification is a mature pattern. CHASE-SQL, for example, generates SQL through multiple reasoning paths and uses a dedicated candidate selection model.
+Online decision-making work has studied expanding/generating action sets and the cost of obtaining new actions. DiCoJev should position its controller as an applied multimodal structured-decision system rather than claim the general generative-action-set idea is new.
 
-Relevant source: https://arxiv.org/abs/2410.01943
+## 7. Feedback and iterative refinement
 
-**Novelty boundary:** the project must never claim that “generator + selector” is new. Its question is whether set adequacy can be explicitly separated from within-set selection and used for compute/risk control.
+Verifier feedback, retry loops, and iterative self-refinement are established ideas. The project does not claim that feedback loops themselves are new. The contribution being tested is the **small typed feedback interface** that connects candidate-set adequacy to regeneration while making feedback bandwidth and latency measurable.
 
-## 5. Selective generation and None of the Above
+## 8. Claims DiCoJev must not make
 
-Ren et al., *Self-Evaluation Improves Selective Generation in Large Language Models*, study self-evaluation and explicitly add a “None of the Above” candidate to avoid forced selection among poor sampled answers.
+Do not claim that DiCoJev invented:
 
-Relevant source: https://proceedings.mlr.press/v239/ren23a.html
+- generate -> verify -> select;
+- dynamic action generation;
+- NOTA/reject options;
+- candidate-set coverage;
+- conformal coverage;
+- feedback loops or iterative refinement;
+- diffusion structured read;
+- Jev-style structured APIs.
 
-**Novelty boundary:** NOTA is not a project contribution by itself. Here it is one observable inside a broader candidate-set adequacy and controller design.
+## 9. Claims the project can test
 
-## 6. Conformal Language Modeling
+The project can test whether the following combination is useful:
 
-Conformal Language Modeling studies candidate-set construction and stopping with statistical coverage guarantees so that a generated set contains at least one acceptable output with controlled miscoverage.
-
-Relevant source: https://proceedings.iclr.cc/paper_files/paper/2024/hash/31421b112e5f7faf4fc577b74e45dab2-Abstract-Conference.html
-
-**Novelty boundary:** candidate coverage is not a new concept. The research opportunity is fast runtime adequacy estimation and adaptive routing for multimodal DLM agents, plus comparison to conformal/repeated-generation baselines.
-
-## 7. Online Decision Making with Generative Action Sets
-
-Xu et al., ICLR 2026, study online agents that can pay a cost to create new actions and derive regret guarantees for balancing action selection and action generation.
-
-Relevant source: https://proceedings.iclr.cc/paper_files/paper/2026/hash/07ed3b22786bd8d46a3654d5325bca09-Abstract-Conference.html
-
-**Novelty boundary:** dynamic action generation and the decision to create more actions are not new in the abstract. The project is a systems/modeling contribution at the intersection of multimodal DLMs, structured reads, set adequacy, calibration, and latency-aware routing.
-
-## 8. Positioning statement
-
-The safest claim is:
-
-> Existing structured decision models are efficient when the decision space is supplied; existing generate-rank systems construct candidates but typically evaluate candidates relative to the generated pool; existing selective/conformal/generative-action-set work addresses rejection, set coverage, or action creation from complementary perspectives. Diffusion Decision studies a fast multimodal DLM architecture in which the model constructs the action set, separately estimates set adequacy and conditional selection, and uses those signals to control execution versus additional computation.
-
-## 9. Claims requiring experimental proof
-
-The repository must treat the following as hypotheses until benchmarks support them:
-
-- diffusion structured read is faster than a cross-encoder for the target workload;
-- same-backbone generation/read is better calibrated than independent models;
-- shared runtime/context materially reduces end-to-end latency;
-- `q_cov * q_sel` approximates task success;
-- multimodal DLM candidate generation improves over autoregressive alternatives;
-- adaptive expansion dominates fixed-`K` generation across domains.
+- multimodal diffusion-generated action sets;
+- explicit `q_cov` distinct from `q_sel`;
+- compact typed feedback instead of long-form retry reasoning;
+- adaptive ACT/EXPAND/ABSTAIN/ESCALATE routing;
+- a common harness across Jev, Djev, cross-encoder, and native DLM readers;
+- a unified DLM runtime for generation and structured read;
+- improved risk/latency/token trade-offs under controlled set failure.

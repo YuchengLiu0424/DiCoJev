@@ -54,6 +54,7 @@ When behavior changes, update the owning human document:
 - decision semantics -> `docs/design/DECISION_SEMANTICS.md`;
 - component/interface -> `docs/design/ARCHITECTURE.md`;
 - backend behavior -> `docs/design/BACKENDS.md`;
+- feedback protocol -> `docs/design/FEEDBACK_PROTOCOL.md`;
 - harness behavior -> `docs/design/HARNESS.md`;
 - operator setup -> `docs/usage/*`;
 - release scope -> `docs/governance/VERSION_CONTROL.md`.

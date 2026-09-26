@@ -7,4 +7,8 @@ calibration:
   selection_method: temperature
 controller:
   policy: adaptive_compute
-  objective: risk_latency_cost
+  objective: risk_latency_token_cost
+feedback:
+  compiler: deterministic_templates
+  learned_policy_allowed: true
+  benchmark_longform_baseline: true

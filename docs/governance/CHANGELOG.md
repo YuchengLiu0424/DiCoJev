@@ -1,13 +1,10 @@
 # Changelog
 
-This file records merged release history. Planned work belongs in `VERSION_CONTROL.md`, not here.
-
 ## Unreleased
 
-### Documentation architecture reset
-
-- separated public README, research docs, design contracts, usage docs, governance, and coding-agent instructions;
-- established single-source-of-truth document ownership;
-- clarified that the core architecture is DLM generator + harness + pluggable decision backend + controller;
-- separated Djev reference-backend topology from native DLM structured read;
-- consolidated the complete v0-v5 scope into the governance version-control plan.
+- Renamed the project and Python package to **DiCoJev** / `dicojev`.
+- Reframed the research thesis around diffusion-generated candidate sets, explicit candidate-set coverage, and Jev-style compact decision reads.
+- Promoted typed low-bandwidth feedback to a first-class project protocol.
+- Added `FeedbackCode`, `FeedbackSignal`, `FeedbackBundle`, `FeedbackCompiler`, and `LoopContext` to the stable architecture.
+- Updated v0-v5 release scope to include feedback-loop implementation and evaluation.
+- Added a dedicated real-DLM runtime planning document while preserving CPU-only v0 tests.
