@@ -1,7 +1,7 @@
 """DiCoJev package metadata."""
 
-__version__ = "0.1.0"
-__milestone__ = "v0"
+__version__ = "0.2.0"
+__milestone__ = "v1"
 
 from .harness import DecisionOrchestrator
 from .schemas import DecisionRequest, DecisionResponse, MetaAction

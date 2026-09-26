@@ -47,11 +47,16 @@ async def test_all_controller_actions(backend_result, remaining, expected):
 @pytest.mark.parametrize("code", list(FeedbackCode))
 async def test_feedback_compilation_is_deterministic(code):
     compiler = DeterministicFeedbackCompiler()
-    details = {"requested_new_candidates": 2} if code in {
-        FeedbackCode.MISSING_ACTION,
-        FeedbackCode.AMBIGUOUS_SELECTION,
-        FeedbackCode.REDUNDANT_SET,
-    } else {}
+    details = (
+        {"requested_new_candidates": 2}
+        if code
+        in {
+            FeedbackCode.MISSING_ACTION,
+            FeedbackCode.AMBIGUOUS_SELECTION,
+            FeedbackCode.REDUNDANT_SET,
+        }
+        else {}
+    )
     bundle = FeedbackBundle(
         primary=FeedbackSignal(code=code, details=details),
         source_round=0,
@@ -66,9 +71,7 @@ async def test_q_cov_is_not_derived_from_q_sel():
     decision = await ThresholdRiskController().decide(
         DecisionBackendResult(
             backend="mock",
-            selection=SelectionScore(
-                selected_id="A", probabilities={"A": 1.0}, confidence_raw=1.0
-            ),
+            selection=SelectionScore(selected_id="A", probabilities={"A": 1.0}, confidence_raw=1.0),
         ),
         round_index=0,
         expansions_remaining=1,

@@ -1,0 +1,14 @@
+project: {milestone: v1, package_version: 0.2.0}
+model:
+  generator_kind: diffusiongemma
+  generator_model: dicojev-diffusiongemma
+  deployment: local
+  base_url: http://127.0.0.1:8000
+  timeout_seconds: 600
+decision_backend:
+  kind: laya_local
+  base_url: http://127.0.0.1:8011
+  model: english
+  timeout_seconds: 60
+controller: {policy: threshold}
+feedback: {compiler: deterministic_templates, generator_consumes_loop_context: true}

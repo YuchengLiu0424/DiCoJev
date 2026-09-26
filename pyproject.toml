@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "dicojev"
-version = "0.1.0"
+version = "0.2.0"
 description = "Coverage-aware Jev-style decision making over diffusion-generated action sets with typed low-bandwidth feedback"
 requires-python = ">=3.11"
 dependencies = [
@@ -16,6 +16,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = ["pytest>=8", "pytest-asyncio>=0.23", "ruff>=0.6"]
 api = ["fastapi>=0.115", "uvicorn>=0.30"]
+cross-encoder = ["sentence-transformers>=3"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/dicojev"]
@@ -23,6 +24,7 @@ packages = ["src/dicojev"]
 [tool.pytest.ini_options]
 addopts = "-q"
 testpaths = ["tests"]
+markers = ["integration: requires an explicitly enabled external model/service"]
 
 [tool.ruff]
 line-length = 100

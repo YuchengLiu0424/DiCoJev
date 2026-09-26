@@ -75,6 +75,7 @@ The project is **local-first**. Model-serving and GPU dependencies are kept outs
 | `MockDecisionBackend` | deterministic tests and offline development |
 | `JevCloudBackend` | hosted structured-decision reference |
 | `DjevLocalBackend` | local Jev-compatible diffusion structured-read reference |
+| `LayaLocalBackend` | local open-weight Jev-compatible System One comparison |
 | `CrossEncoderDecisionBackend` | conventional generate-then-rank baseline |
 | `NativeDLMDecisionBackend` | project-owned diffusion structured-read path |
 

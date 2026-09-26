@@ -77,7 +77,7 @@ Rules:
 - no requirement that Jev receive original images if its supported state contract does not accept them; capability mismatch must be explicit;
 - network latency must be reported separately from local harness latency.
 
-Jev documentation: https://jevmodel.net/docs
+Jev API documentation: https://docs.typesafe.ai/
 
 ## 6. DjevLocalBackend
 
@@ -116,6 +116,20 @@ q_cov := max candidate score
 ```
 
 without labeling it as an intentionally weak proxy baseline.
+
+## 7a. LayaLocalBackend
+
+Purpose: local open-weight System One comparison backend.
+
+Rules:
+
+- connect to Laya's Jev-compatible `/v1/systemone` endpoint;
+- identify results as `laya_local`, never as Jev or Djev;
+- use the same compiled coverage and selection questions as other compatible backends;
+- preserve Laya's model/usage diagnostics and report local read latency;
+- do not reuse Jev confidence thresholds without calibration because their confidence definitions differ.
+
+Laya reference: https://github.com/NandhaKishorM/laya
 
 ## 8. NativeDLMDecisionBackend
 

@@ -3,8 +3,13 @@ model:
   generator_kind: diffusiongemma
   generator_model: google/diffusiongemma-26B-A4B-it
   deployment: local
+  base_url: http://127.0.0.1:8000
+  timeout_seconds: 60
 decision_backend:
   kind: djev_local
-  allowed: [jev_cloud, djev_local, cross_encoder, mock]
+  base_url: http://127.0.0.1:8011
+  model: dgemma
+  timeout_seconds: 30
+  allowed: [jev_cloud, djev_local, laya_local, cross_encoder, mock]
 controller: {policy: threshold}
 feedback: {compiler: deterministic_templates, generator_consumes_loop_context: true}

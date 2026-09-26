@@ -103,6 +103,7 @@ Create an installable CPU-only reference implementation of:
 - robust `DecisionSpec` generation;
 - `JevCloudBackend`;
 - `DjevLocalBackend`;
+- `LayaLocalBackend` as an open-weight Jev-compatible comparison;
 - `CrossEncoderDecisionBackend`;
 - backend capability negotiation;
 - config-only backend selection;
@@ -114,6 +115,7 @@ Create an installable CPU-only reference implementation of:
 - documented local DLM serving path reaches a successful candidate-generation smoke test;
 - real generator can consume an expansion `LoopContext` without paraphrasing all prior candidates in controlled fixtures;
 - same normalized set can reach all compatible backends;
+- hosted Jev and local Laya can evaluate the same persisted candidate set;
 - Jev credentials remain optional/environment-only;
 - Djev is accessed through a local adapter, not vendored into core;
 - two-DLM-stage topology is measurable;

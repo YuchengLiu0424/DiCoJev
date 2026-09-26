@@ -32,21 +32,27 @@ def parse_decision_spec(
     raw: str | dict[str, Any], repair: Callable[[str], str] | None = None
 ) -> DecisionSpec:
     if isinstance(raw, dict):
-        payload = raw
-    else:
         try:
-            payload = json.loads(extract_json_object(raw))
-        except (json.JSONDecodeError, InvalidDecisionSpec) as first_error:
-            if repair is None:
-                raise InvalidDecisionSpec(str(first_error)) from first_error
-            try:
-                payload = json.loads(extract_json_object(repair(raw)))
-            except (json.JSONDecodeError, InvalidDecisionSpec) as error:
-                raise InvalidDecisionSpec(str(error)) from error
+            return DecisionSpec.model_validate(raw)
+        except ValidationError as error:
+            raise InvalidDecisionSpec(str(error)) from error
+
+    def parse_and_validate(value: str) -> DecisionSpec:
+        try:
+            payload = json.loads(extract_json_object(value))
+            return DecisionSpec.model_validate(payload)
+        except (json.JSONDecodeError, ValidationError, InvalidDecisionSpec) as error:
+            raise InvalidDecisionSpec(str(error)) from error
+
     try:
-        return DecisionSpec.model_validate(payload)
-    except ValidationError as error:
-        raise InvalidDecisionSpec(str(error)) from error
+        return parse_and_validate(raw)
+    except InvalidDecisionSpec as first_error:
+        if repair is None:
+            raise
+        try:
+            return parse_and_validate(repair(raw))
+        except InvalidDecisionSpec as error:
+            raise InvalidDecisionSpec(str(error)) from first_error
 
 
 def canonical_action(action: str) -> str:
