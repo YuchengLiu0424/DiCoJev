@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from time import perf_counter
+
 from ..protocols import (
     CandidateGenerator,
     DecisionBackend,
@@ -65,8 +67,12 @@ class DecisionOrchestrator:
         decision = self._failure(0, "not_started")
 
         for round_index in range(request.budget.max_expansions + 1):
+            generation_ms = 0.0
+            feedback_ms = 0.0
             try:
+                generation_started = perf_counter()
                 spec = await self.generator.generate(request, context)
+                generation_ms = (perf_counter() - generation_started) * 1000
                 new = registry.register(spec.candidates, round_index)
                 candidates = merge_candidates(candidates, new)
                 validate_candidates(candidates, request)
@@ -122,13 +128,19 @@ class DecisionOrchestrator:
                     feedback_codes=feedback_codes,
                     controller_action=decision.action,
                     controller_reason_code=decision.reason_code,
-                    latency_ms={"backend": backend_result.latency_ms},
+                    latency_ms={
+                        "generation": generation_ms,
+                        "backend": backend_result.latency_ms,
+                        "feedback_compilation": feedback_ms,
+                    },
                 )
             )
             if decision.action is not MetaAction.EXPAND:
                 break
             try:
+                feedback_started = perf_counter()
                 compiled = await self.feedback_compiler.compile(decision.feedback)
+                feedback_ms = (perf_counter() - feedback_started) * 1000
             except Exception as error:  # noqa: BLE001 - normalize compiler boundary fail-closed
                 decision = self._failure(
                     round_index, f"feedback_compilation_failure:{type(error).__name__}"
@@ -145,6 +157,10 @@ class DecisionOrchestrator:
                     "feedback_serialized_bytes": compiled.serialized_bytes,
                     "feedback_referenced_candidate_ids": compiled.referenced_candidate_count,
                     "compiled_feedback_prompt_tokens": compiled.prompt_tokens,
+                    "latency_ms": {
+                        **trace[-1].latency_ms,
+                        "feedback_compilation": feedback_ms,
+                    },
                 }
             )
             context = LoopContext(
@@ -153,9 +169,7 @@ class DecisionOrchestrator:
                 latest_feedback=decision.feedback,
                 feedback_history=tuple(code for event in trace for code in event.feedback_codes),
                 generation_feedback=compiled,
-                remaining_candidate_budget=max(
-                    0, request.budget.max_candidates - len(candidates)
-                ),
+                remaining_candidate_budget=max(0, request.budget.max_candidates - len(candidates)),
                 remaining_expansion_budget=request.budget.max_expansions - round_index - 1,
                 remaining_latency_ms=request.budget.latency_ms,
                 remaining_compute_units=request.budget.compute_units,

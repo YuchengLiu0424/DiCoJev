@@ -43,6 +43,7 @@ class ThresholdRiskController:
             feedback=bundle,
             selected_candidate_id=selected_id,
         )
+
     async def decide(
         self, result: DecisionBackendResult, *, round_index: int, expansions_remaining: int
     ) -> ControllerDecision:

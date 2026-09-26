@@ -23,6 +23,7 @@ def compile_coverage(
         "options": [f"{candidate.id}: {candidate.action}" for candidate in semantic],
     }
 
+
 def compile_selection(
     request: DecisionRequest, spec: DecisionSpec, candidates: list[Candidate]
 ) -> dict[str, Any]:

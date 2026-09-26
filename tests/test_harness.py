@@ -42,8 +42,12 @@ def test_json_extraction_and_one_bounded_repair():
 
 def test_dedupe_and_stable_ids_across_expansion():
     registry = CandidateRegistry()
-    first = registry.register((Candidate(action=" Review draft "), Candidate(action="review draft")), 0)
-    second = registry.register((Candidate(action="Review draft"), Candidate(action="Ask approval")), 1)
+    first = registry.register(
+        (Candidate(action=" Review draft "), Candidate(action="review draft")), 0
+    )
+    second = registry.register(
+        (Candidate(action="Review draft"), Candidate(action="Ask approval")), 1
+    )
     assert [item.id for item in first] == ["A"]
     assert [item.id for item in second] == ["A", "B"]
 

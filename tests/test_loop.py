@@ -58,6 +58,11 @@ async def test_offline_expand_loop_preserves_candidates_and_ids(decision_request
         MetaAction.ACT,
     ]
     assert response.trace[0].feedback_serialized_bytes > 0
+    assert set(response.trace[0].latency_ms) == {
+        "generation",
+        "backend",
+        "feedback_compilation",
+    }
 
 
 @pytest.mark.asyncio
