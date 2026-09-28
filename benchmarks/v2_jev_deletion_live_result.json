@@ -1,0 +1,30 @@
+{
+  "backend": "jev_cloud",
+  "conditions": [
+    {
+      "coverage": 0.95,
+      "id": "adequate",
+      "latency_ms": 1220.329700037837,
+      "model": "jev-1.13.0",
+      "selected_id": "A",
+      "usage": {
+        "input_tokens": 457,
+        "output_tokens": 54
+      }
+    },
+    {
+      "coverage": 0.39,
+      "id": "all-acceptable-deleted",
+      "latency_ms": 1758.9581001084298,
+      "model": "jev-1.13.0",
+      "selected_id": "N",
+      "usage": {
+        "input_tokens": 455,
+        "output_tokens": 54
+      }
+    }
+  ],
+  "dataset": "benchmarks/v2_jev_candidate_deletion.json",
+  "run_date": "2026-09-28",
+  "schema_version": "v2-jev-deletion-result-1"
+}

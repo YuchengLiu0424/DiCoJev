@@ -6,7 +6,7 @@ import json
 import os
 import re
 from time import perf_counter
-from typing import Any
+from typing import Any, ClassVar
 
 import httpx
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
@@ -66,6 +66,10 @@ class DiffusionGemmaGenerator:
     """Generate project-native DecisionSpec JSON through an HTTP model server."""
 
     capabilities = GeneratorCapabilities(supports_images=True, supports_native_multimodal=True)
+    provider_name = "DiffusionGemma"
+    minimum_completion_tokens = 64
+    extra_request_fields: ClassVar[dict[str, Any]] = {}
+    truncate_excess_candidates = False
 
     def __init__(
         self,
@@ -87,7 +91,8 @@ class DiffusionGemmaGenerator:
     @staticmethod
     def _candidate_limit(request: DecisionRequest, context: LoopContext | None) -> int:
         if context is None:
-            return request.budget.max_candidates
+            rounds = request.budget.max_expansions + 1
+            return max(1, (request.budget.max_candidates + rounds - 1) // rounds)
         return min(
             context.remaining_candidate_budget,
             context.generation_feedback.requested_new_candidates,
@@ -151,6 +156,9 @@ class DiffusionGemmaGenerator:
             raise MalformedProviderResponse("chat completion content is empty")
         return content
 
+    def _chat_completions_path(self) -> str:
+        return "/chat/completions" if self.base_url.endswith("/v1") else "/v1/chat/completions"
+
     @staticmethod
     def _parse_compact(content: str) -> _CompactCandidates:
         def parse(value: str) -> _CompactCandidates | None:
@@ -188,12 +196,17 @@ class DiffusionGemmaGenerator:
             for item in compact.candidates
         )
         limit = cls._candidate_limit(request, context)
+        if limit <= 0:
+            raise MalformedProviderResponse("candidate budget is exhausted")
+        if len(candidates) > limit:
+            if cls.truncate_excess_candidates:
+                candidates = candidates[:limit]
+            else:
+                raise MalformedProviderResponse("generator violated candidate limit")
         if context is not None:
             prior = {canonical_action(item.action) for item in context.prior_candidates}
             if any(canonical_action(item.action) in prior for item in candidates):
                 raise MalformedProviderResponse("expansion repeated a prior candidate")
-        if len(candidates) > limit:
-            raise MalformedProviderResponse("generator violated candidate limit")
         constraint_text = "; ".join(request.constraints)
         constraint_suffix = f" Constraints: {constraint_text}" if constraint_text else ""
         return DecisionSpec(
@@ -223,18 +236,19 @@ class DiffusionGemmaGenerator:
                 headers=({"Authorization": f"Bearer {self.api_key}"} if self.api_key else None),
             ) as client:
                 response = await client.post(
-                    "/v1/chat/completions",
+                    self._chat_completions_path(),
                     json={
                         "model": self.model,
                         "messages": self.build_messages(request, context),
                         "response_format": {"type": "json_object"},
-                        "max_tokens": max(64, 32 * limit + 32),
+                        "max_tokens": max(self.minimum_completion_tokens, 32 * limit + 32),
+                        **self.extra_request_fields,
                     },
                 )
                 response.raise_for_status()
                 payload = response.json()
         except (httpx.HTTPError, ValueError) as error:
-            raise GeneratorUnavailable("DiffusionGemma service unavailable") from error
+            raise GeneratorUnavailable(f"{self.provider_name} service unavailable") from error
         finally:
             self.last_latency_ms = (perf_counter() - started) * 1000
         self.last_usage = payload.get("usage", {}) if isinstance(payload, dict) else {}
@@ -245,6 +259,13 @@ class MercuryGenerator(DiffusionGemmaGenerator):
     """Hosted Inception Mercury text DLM through its OpenAI-compatible API."""
 
     capabilities = GeneratorCapabilities()
+    provider_name = "Mercury"
+    minimum_completion_tokens = 1000
+    extra_request_fields: ClassVar[dict[str, Any]] = {
+        "reasoning_effort": "low",
+        "temperature": 0.2,
+    }
+    truncate_excess_candidates = True
 
     def __init__(
         self,
@@ -255,9 +276,9 @@ class MercuryGenerator(DiffusionGemmaGenerator):
         timeout_seconds: float = 60,
         transport: httpx.AsyncBaseTransport | None = None,
     ) -> None:
-        key = api_key or os.getenv("INCEPTION_API_KEY")
+        key = api_key or os.getenv("INCEPTION_API_KEY") or os.getenv("MERCURY_API_KEY")
         if not key:
-            raise ConfigurationError("INCEPTION_API_KEY is required for Mercury")
+            raise ConfigurationError("INCEPTION_API_KEY or MERCURY_API_KEY is required for Mercury")
         super().__init__(
             base_url=os.getenv("INCEPTION_BASE_URL", base_url),
             model=os.getenv("INCEPTION_MODEL", model),

@@ -137,3 +137,6 @@ An expansion begins only when two compute units remain. Wall-clock latency is me
 entry, and a completed evidence read may still result in `ACT`; exhausted latency prevents another
 expansion. Traces record remaining candidate, expansion, latency, and compute budgets after each
 round.
+
+Initial generation reserves candidate capacity across the configured maximum number of rounds
+rather than consuming the total candidate budget before feedback can request an expansion.

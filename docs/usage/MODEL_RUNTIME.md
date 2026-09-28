@@ -21,13 +21,16 @@ Set the API key only in the environment:
 
 ```bash
 export INCEPTION_API_KEY="..."
-python scripts/runtime_smoke.py --generator mercury
+python scripts/runtime_smoke.py --generator mercury --output results/v2_mercury_smoke.json
 ```
 
 The default endpoint is `https://api.inceptionlabs.ai/v1` and the default stable model identifier is
 `mercury-2.5`; both can be overridden with `INCEPTION_BASE_URL` and `INCEPTION_MODEL`. Mercury uses
 the same bounded project-native candidate parser as the local generator. It can return optional
 `tool` and exact `constraint_violations` metadata for each candidate.
+`MERCURY_API_KEY` is accepted as an alias for `INCEPTION_API_KEY`.
+If Mercury overproduces candidates, its adapter deterministically retains the first requested
+items; it never exceeds the request/expansion candidate budget.
 
 ## Local DiffusionGemma
 

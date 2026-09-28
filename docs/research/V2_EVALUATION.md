@@ -10,23 +10,37 @@ coverage values are not empirical model-quality evidence.
 
 ## Live Jev candidate deletion
 
-A matched live Jev check reported the expected degradation:
+A matched live Jev check on 2026-09-28 reported the expected degradation:
 
 | Condition | Coverage | Selection |
 |---|---:|---|
-| acceptable candidate retained | 0.98 | A |
-| all acceptable candidates deleted | 0.15 | N |
+| acceptable candidate retained | 0.95 | A |
+| all acceptable candidates deleted | 0.39 | N |
 
-The original raw provider envelope was not retained, so this table is supporting evidence rather
-than a complete reproducibility artifact. `benchmarks/v2_jev_candidate_deletion.json` now fixes the
-matched inputs, and `scripts/evaluate_v2_jev_deletion.py` persists normalized live results when run
-with `JEV_API_KEY`. Future release evidence should use that saved output rather than manually copied
-scores.
+`benchmarks/v2_jev_candidate_deletion.json` fixes the matched inputs, and
+`benchmarks/v2_jev_deletion_live_result.json` retains the normalized result without credentials or
+the raw provider envelope. `scripts/evaluate_v2_jev_deletion.py` can reproduce the report with
+`JEV_API_KEY`.
 
 ## Live generator status
 
-The local quantized DiffusionGemma text path was previously validated and is slow but effective.
-At this checkpoint no `INCEPTION_API_KEY` was configured, the local DLM endpoint was offline, and no
-live native-image generation was rerun. Mercury is therefore adapter-tested only; local native-image
-transport is request-shape-tested only. These limitations must remain visible until the corresponding
-live report is persisted.
+The local quantized DiffusionGemma text path was previously validated and remains slow but effective:
+the retained trial generated 256 tokens in 175.5 seconds after loading a Q4 model that used roughly
+29 GB resident memory. The HTTP endpoint is currently offline, and the earlier WSL CLI build could
+not be located, so no live native-image generation was rerun. Native-image transport remains
+request-shape-tested only.
+
+Mercury credentials are now available through the supported `MERCURY_API_KEY` alias. Live testing
+found and fixed the `/v1` URL composition, completion-token, overproduction, and round-budget issues.
+One diagnostic run returned a valid eight-candidate initial set in 2.48 seconds and a second provider
+response in 2.25 seconds, but that run predated the round-budget fix and therefore produced no usable
+expansion. After reserving four of eight candidate slots for expansion, the provider timed out once
+during expansion at 60 seconds and once during initial generation at 120 seconds. This is evidence
+that the adapter can reach and parse Mercury, but it is not a passing closed-loop smoke test.
+
+## Release decision
+
+The deterministic v2 implementation and live Jev deletion check pass. The release remains
+provisional: do not tag v2 until either Mercury completes a bounded initial-plus-expansion smoke run,
+or the local DiffusionGemma endpoint completes an equivalent run, and one native-image local run is
+persisted. The existing pull request may be reviewed, but these runtime gates should stay explicit.

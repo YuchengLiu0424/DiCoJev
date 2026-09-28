@@ -106,6 +106,15 @@ def test_generator_rejects_full_spec_and_constructs_stable_fields():
         )
 
 
+def test_initial_generation_reserves_candidate_budget_for_expansion():
+    request = DecisionRequest(
+        state=MultimodalState(text="x"),
+        goal="Choose",
+        budget={"max_candidates": 8, "max_expansions": 1},
+    )
+    assert DiffusionGemmaGenerator._candidate_limit(request, None) == 4
+
+
 def test_compact_generator_accepts_optional_tool_and_constraint_metadata():
     request = DecisionRequest(
         state=MultimodalState(text="x"),
@@ -134,6 +143,7 @@ def test_compact_generator_accepts_optional_tool_and_constraint_metadata():
 @pytest.mark.asyncio
 async def test_mercury_uses_auth_and_fails_explicitly_for_images(monkeypatch):
     monkeypatch.delenv("INCEPTION_API_KEY", raising=False)
+    monkeypatch.delenv("MERCURY_API_KEY", raising=False)
     with pytest.raises(ConfigurationError):
         MercuryGenerator()
 
@@ -147,6 +157,18 @@ async def test_mercury_uses_auth_and_fails_explicitly_for_images(monkeypatch):
     spec = await generator.generate(DecisionRequest(state=MultimodalState(text="x"), goal="Choose"))
     assert spec.candidates[0].action == "Review"
     assert captured["authorization"] == "Bearer fixture"
+    assert generator._chat_completions_path() == "/chat/completions"
+    assert generator.minimum_completion_tokens == 1000
+    assert generator.extra_request_fields["reasoning_effort"] == "low"
+    bounded_request = DecisionRequest(
+        state=MultimodalState(text="x"),
+        goal="Choose",
+        budget={"max_candidates": 1},
+    )
+    bounded = MercuryGenerator.parse_response(
+        '{"candidates":[{"action":"One"},{"action":"Two"}]}', bounded_request
+    )
+    assert [item.action for item in bounded.candidates] == ["One"]
     with pytest.raises(CapabilityMismatch):
         await generator.generate(
             DecisionRequest(
