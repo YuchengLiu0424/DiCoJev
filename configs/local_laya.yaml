@@ -7,7 +7,7 @@ model:
   timeout_seconds: 600
 decision_backend:
   kind: laya_local
-  base_url: http://127.0.0.1:8011
+  base_url: http://127.0.0.1:8000
   model: english
   timeout_seconds: 60
 controller: {policy: threshold}

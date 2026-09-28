@@ -12,7 +12,7 @@ from dicojev.schemas import Candidate, DecisionSpec, MultimodalState
 async def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--backend", choices=("jev", "laya"), required=True)
-    parser.add_argument("--laya-url", default="http://127.0.0.1:8011")
+    parser.add_argument("--laya-url", default="http://127.0.0.1:8000")
     args = parser.parse_args()
 
     state = MultimodalState(

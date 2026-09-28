@@ -118,6 +118,6 @@ async def test_live_jev_structured_read_smoke():
 async def test_live_laya_structured_read_smoke():
     state, spec, candidates = _systemone_fixture()
     result = await LayaLocalBackend(
-        base_url=os.getenv("DICOJEV_LAYA_URL", "http://127.0.0.1:8011")
+        base_url=os.getenv("DICOJEV_LAYA_URL", "http://127.0.0.1:8000")
     ).decide(state, spec, candidates)
     assert result.coverage is not None and result.selection is not None

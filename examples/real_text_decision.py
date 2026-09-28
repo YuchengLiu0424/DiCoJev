@@ -21,7 +21,7 @@ async def main() -> None:
         "--generator-model", default=os.getenv("DICOJEV_GENERATOR_MODEL", DEFAULT_MODEL)
     )
     parser.add_argument("--djev-url", default="http://127.0.0.1:8011")
-    parser.add_argument("--laya-url", default="http://127.0.0.1:8011")
+    parser.add_argument("--laya-url", default="http://127.0.0.1:8000")
     args = parser.parse_args()
     if args.backend == "djev":
         backend = DjevLocalBackend(base_url=args.djev_url)

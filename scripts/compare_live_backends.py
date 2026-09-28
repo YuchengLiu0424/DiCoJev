@@ -16,7 +16,7 @@ async def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--generator-url", default="http://127.0.0.1:11434")
     parser.add_argument("--generator-model", default="dicojev-diffusiongemma")
-    parser.add_argument("--laya-url", default="http://127.0.0.1:8011")
+    parser.add_argument("--laya-url", default="http://127.0.0.1:8000")
     args = parser.parse_args()
 
     request = DecisionRequest(

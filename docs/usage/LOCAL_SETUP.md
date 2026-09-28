@@ -86,6 +86,10 @@ Djev upstream setup evolves quickly. Follow its current repository instructions 
 
 https://github.com/mmastrac/djev
 
+This topology requires a suitably provisioned accelerator host for Djev's patched vLLM stack. It
+is retained as a reference comparison, not as the supported consumer-laptop path. For local runs
+on the current machine, use Laya on port 8000; for hosted reads, use Jev Cloud.
+
 ## 5. Deployment shape D — local DLM + Jev Cloud
 
 ```text

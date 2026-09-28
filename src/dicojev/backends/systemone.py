@@ -237,7 +237,7 @@ class LayaLocalBackend(_SystemOneBackend):
     def __init__(
         self,
         *,
-        base_url: str = "http://127.0.0.1:8011",
+        base_url: str = "http://127.0.0.1:8000",
         model: str = "english",
         timeout_seconds: float = 30,
         transport: httpx.AsyncBaseTransport | None = None,

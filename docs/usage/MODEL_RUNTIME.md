@@ -83,9 +83,12 @@ On Windows, install it in the application environment and run the English checkp
 .\.venv\Scripts\python.exe -m pip install "laya[serve]"
 $env:LAYA_DEVICE = "cpu"
 $env:LAYA_MODELS = "english"
-$env:LAYA_PORT = "8011"
+$env:LAYA_PORT = "8000"
 .\.venv\Scripts\laya-serve.exe
 ```
+
+Port 8000 is Laya's current default. Set both `LAYA_PORT` on the server and
+`DICOJEV_LAYA_URL`/`--laya-url` on the client if you intentionally choose another port.
 
 The first launch downloads the checkpoint to the Hugging Face cache. In another terminal:
 
@@ -120,4 +123,12 @@ text runs use Mercury, while native-image or local/private runs accept the measu
 
 ## Djev
 
-Djev is a separate reference backend service, not the canonical DiCoJev runtime. When DiffusionGemma generation and Djev structured read are both used, report two diffusion stages and the memory/latency of each.
+Djev is a separate accelerator-oriented reference backend service, not the canonical DiCoJev
+runtime. Its patched vLLM/DiffusionGemma stack is not supported by Ollama and is not a practical
+deployment on the project's consumer laptop GPU. Keep `DjevLocalBackend` for reproducible
+comparison with a suitably provisioned external service; use hosted Jev or local CPU Laya for
+working decision reads on this machine.
+
+When DiffusionGemma generation and Djev structured read are both used, report two diffusion
+stages and the memory/latency of each. Do not treat an unavailable Djev service as a failure of the
+DiCoJev controller or silently substitute Laya results under the `djev_local` backend name.
