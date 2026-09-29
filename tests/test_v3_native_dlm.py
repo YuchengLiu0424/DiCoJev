@@ -1,8 +1,13 @@
 import math
 
+import httpx
 import pytest
 
-from dicojev.backends import NativeDLMDecisionBackend, build_native_read_request
+from dicojev.backends import (
+    LladaHTTPNativeReadRuntime,
+    NativeDLMDecisionBackend,
+    build_native_read_request,
+)
 from dicojev.config import create_backend
 from dicojev.errors import BackendUnavailable, ConfigurationError
 from dicojev.schemas import Candidate, DecisionSpec, MultimodalState
@@ -94,7 +99,7 @@ async def test_native_backend_rejects_wrong_logit_count():
 
 
 def test_native_backend_configuration_requires_runtime():
-    with pytest.raises(ConfigurationError, match="same-process"):
+    with pytest.raises(ConfigurationError, match="injected read runtime"):
         create_backend({"decision_backend": {"kind": "native_dlm"}})
 
     runtime = object()
@@ -103,3 +108,33 @@ def test_native_backend_configuration_requires_runtime():
     )
     assert isinstance(backend, NativeDLMDecisionBackend)
     assert backend.runtime is runtime
+
+    configured = create_backend(
+        {
+            "decision_backend": {
+                "kind": "native_dlm",
+                "runtime_kind": "llada_http",
+                "base_url": "http://llada",
+            }
+        }
+    )
+    assert isinstance(configured.runtime, LladaHTTPNativeReadRuntime)
+    assert configured.runtime.base_url == "http://llada"
+
+
+@pytest.mark.asyncio
+async def test_llada_http_runtime_transports_native_read_canvas():
+    captured = {}
+
+    def handler(request):
+        captured.update(__import__("json").loads(request.content))
+        return httpx.Response(200, json={"logits": [-1.0, 1.0]})
+
+    runtime = LladaHTTPNativeReadRuntime(transport=httpx.MockTransport(handler))
+    read = build_native_read_request(
+        "coverage", MultimodalState(text="x"), fixture_spec(), fixture_candidates()
+    )
+    assert await runtime.read(read) == [-1.0, 1.0]
+    assert captured["labels"] == ["0", "1"]
+    assert captured["prompt"] == read.prompt
+    assert captured["images"] == []

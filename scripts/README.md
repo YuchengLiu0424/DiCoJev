@@ -30,3 +30,7 @@ After starting it, exercise the first-class adapter with:
 All OpenAI-compatible candidate adapters share one bounded structured-output repair attempt by
 default. The retry includes the rejected response and validation reason; usage and latency include
 both attempts. Configuration can select LLaDA with `generator_kind: llada`.
+
+`native_read_smoke.py` sends the same state and candidate set through the LLaDA server's explicit
+masked-label `/v1/structured-read` endpoint. It performs separate binary coverage and categorical
+selection reads and can persist normalized evidence with `--output`.

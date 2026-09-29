@@ -5,6 +5,8 @@
 - Began v3 with a project-owned `NativeDLMDecisionBackend`, deterministic coverage/selection
   canvases, strict label/logit validation, normalized probabilities, and injectable same-process
   runtime support.
+- Added a shared-process LLaDA-V masked-label endpoint and verified real text and native-image
+  coverage/selection reads on the complete local checkpoint.
 - Added a first-class local `LladaGenerator` and configuration kind.
 - Centralized bounded structured-output regeneration across OpenAI-compatible generators with
   aggregate repair, token-usage, and latency telemetry.

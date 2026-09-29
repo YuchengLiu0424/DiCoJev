@@ -61,6 +61,12 @@ def test_llada_http_contract_reports_real_usage_and_validates_requests():
             assert temperature == 0.2
             return "world", 3, 1
 
+        def structured_read(self, prompt, labels, images):
+            assert prompt == "choose"
+            assert labels == ["A", "N"]
+            assert images == []
+            return [2.0, -1.0], [32, 45], 7
+
     server = ThreadingHTTPServer(("127.0.0.1", 0), module.make_handler(Runtime(), "fixture"))
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
@@ -98,6 +104,17 @@ def test_llada_http_contract_reports_real_usage_and_validates_requests():
             assert error.code == 422
         else:
             raise AssertionError("invalid request should return HTTP 422")
+
+        native = urllib.request.Request(
+            base_url + "/v1/structured-read",
+            data=json.dumps({"prompt": "choose", "labels": ["A", "N"]}).encode(),
+            headers={"Content-Type": "application/json"},
+        )
+        with urllib.request.urlopen(native) as response:
+            native_payload = json.load(response)
+        assert native_payload["logits"] == [2.0, -1.0]
+        assert native_payload["label_token_ids"] == [32, 45]
+        assert native_payload["usage"] == {"prompt_tokens": 7}
     finally:
         server.shutdown()
         server.server_close()

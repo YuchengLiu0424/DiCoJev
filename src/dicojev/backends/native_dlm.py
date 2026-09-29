@@ -11,7 +11,10 @@ from dataclasses import dataclass
 from time import perf_counter
 from typing import Literal, Protocol
 
+import httpx
+
 from ..errors import BackendUnavailable
+from ..multimodal import materialize_image
 from ..schemas import (
     BackendCapabilities,
     Candidate,
@@ -40,6 +43,42 @@ class NativeReadRuntime(Protocol):
 
 
 LabelValidator = Callable[[str], bool]
+
+
+class LladaHTTPNativeReadRuntime:
+    """Use the structured-read endpoint served by the shared LLaDA-V model process."""
+
+    def __init__(
+        self,
+        *,
+        base_url: str = "http://127.0.0.1:8002",
+        timeout_seconds: float = 600,
+        transport: httpx.AsyncBaseTransport | None = None,
+    ) -> None:
+        self.base_url = base_url.rstrip("/")
+        self.timeout_seconds = timeout_seconds
+        self.transport = transport
+
+    async def read(self, request: NativeReadRequest) -> Sequence[float]:
+        images = [materialize_image(image).url for image in request.state.images]
+        try:
+            async with httpx.AsyncClient(
+                base_url=self.base_url,
+                timeout=self.timeout_seconds,
+                transport=self.transport,
+            ) as client:
+                response = await client.post(
+                    "/v1/structured-read",
+                    json={"prompt": request.prompt, "labels": request.labels, "images": images},
+                )
+                response.raise_for_status()
+                payload = response.json()
+        except (httpx.HTTPError, ValueError) as error:
+            raise BackendUnavailable("LLaDA-V structured-read service unavailable") from error
+        logits = payload.get("logits") if isinstance(payload, dict) else None
+        if not isinstance(logits, list):
+            raise BackendUnavailable("LLaDA-V structured-read response omitted logits")
+        return logits
 
 
 def _softmax(logits: Sequence[float]) -> list[float]:

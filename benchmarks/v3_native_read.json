@@ -1,0 +1,26 @@
+{
+  "date": "2026-09-29",
+  "host_profile": "consumer Windows laptop, CPU inference, 64 GB RAM",
+  "runtime": "LLaDA-V 8.43B, Transformers 4.40.0, PyTorch 2.14.0+cpu",
+  "method": "single masked-token logits with independent binary coverage and categorical selection reads",
+  "text": {
+    "status": "pass",
+    "latency_ms": 27585.49,
+    "coverage": 0.8591918303320635,
+    "coverage_logits": [4.84765625, 6.65625],
+    "selected_id": "A",
+    "selection_confidence": 0.9958175058144085,
+    "selection_logits": [10.59375, 5.12109375]
+  },
+  "native_image": {
+    "status": "pass",
+    "input": "one-pixel red PNG through the native SigLIP processor",
+    "latency_ms": 997872.19,
+    "coverage": 0.6842640244786128,
+    "coverage_logits": [8.8671875, 9.640625],
+    "selected_id": "A",
+    "selection_confidence": 0.9930423911926235,
+    "selection_logits": [13.1328125, 8.171875],
+    "notes": "Both reads recomputed vision features; caching the prepared multimodal state is required before interactive use."
+  }
+}

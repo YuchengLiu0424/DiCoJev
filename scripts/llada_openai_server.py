@@ -185,6 +185,72 @@ class LladaRuntime:
         completion_tokens = len(self.tokenizer(content, add_special_tokens=False).input_ids)
         return content, prompt_tokens, completion_tokens
 
+    def structured_read(
+        self, prompt: str, labels: list[str], image_urls: list[str]
+    ) -> tuple[list[float], list[int], int]:
+        label_token_ids: list[int] = []
+        for label in labels:
+            token_ids = self.tokenizer(label, add_special_tokens=False).input_ids
+            if len(token_ids) != 1:
+                raise RequestError(f"label must encode to exactly one token: {label!r}")
+            label_token_ids.append(token_ids[0])
+
+        images = [decode_image_url(url) for url in image_urls]
+        content = ("<image>\n" * len(images)) + prompt
+        rendered = self.tokenizer.apply_chat_template(
+            [{"role": "user", "content": content}],
+            tokenize=False,
+            add_generation_prompt=True,
+        )
+        if images:
+            input_ids = self.tokenizer_image_token(
+                rendered, self.tokenizer, self.image_token_index, return_tensors="pt"
+            ).unsqueeze(0)
+            vision_tower = self.model.get_vision_tower()
+            image_tensors = self.process_images(
+                images, vision_tower.image_processor, self.model.config
+            )
+            image_tensors = [
+                tensor.to(dtype=self.torch.float16, device="cpu") for tensor in image_tensors
+            ]
+            image_sizes = [image.size for image in images]
+        else:
+            input_ids = self.tokenizer(rendered, return_tensors="pt").input_ids
+            image_tensors = None
+            image_sizes = None
+
+        mask_token_id = self.tokenizer.convert_tokens_to_ids("<|mdm_mask|>")
+        mask = self.torch.tensor([[mask_token_id]], dtype=input_ids.dtype)
+        input_ids = self.torch.cat([input_ids, mask], dim=-1)
+        attention_mask = self.torch.ones_like(input_ids)
+        with self.lock, self.torch.no_grad():
+            (
+                prepared_input_ids,
+                position_ids,
+                prepared_attention_mask,
+                _,
+                inputs_embeds,
+                _,
+            ) = self.model.prepare_inputs_labels_for_multimodal(
+                input_ids,
+                None,
+                attention_mask,
+                None,
+                None,
+                images=image_tensors,
+                image_sizes=image_sizes,
+            )
+            output = self.model.model(
+                input_ids=prepared_input_ids,
+                position_ids=position_ids,
+                attention_mask=prepared_attention_mask,
+                inputs_embeds=inputs_embeds,
+                return_dict=True,
+            )
+            logits = self.model.lm_head(output.last_hidden_state)
+        logits = logits[0, -1, label_token_ids].float().tolist()
+        return logits, label_token_ids, int(input_ids.shape[-1])
+
 
 def make_handler(runtime: LladaRuntime, model_name: str):
     class Handler(BaseHTTPRequestHandler):
@@ -205,7 +271,7 @@ def make_handler(runtime: LladaRuntime, model_name: str):
                 self.send_json(404, {"error": {"message": "not found"}})
 
         def do_POST(self) -> None:
-            if self.path != "/v1/chat/completions":
+            if self.path not in {"/v1/chat/completions", "/v1/structured-read"}:
                 self.send_json(404, {"error": {"message": "not found"}})
                 return
             try:
@@ -213,7 +279,12 @@ def make_handler(runtime: LladaRuntime, model_name: str):
                 if length <= 0 or length > 10 * 1024 * 1024:
                     raise RequestError("request body must be between 1 byte and 10 MiB")
                 request = json.loads(self.rfile.read(length))
-                if not isinstance(request, dict) or not isinstance(request.get("messages"), list):
+                if not isinstance(request, dict):
+                    raise RequestError("request body must be an object")
+                if self.path == "/v1/structured-read":
+                    self.handle_structured_read(request)
+                    return
+                if not isinstance(request.get("messages"), list):
                     raise RequestError("messages must be an array")
                 if not request["messages"]:
                     raise RequestError("messages must not be empty")
@@ -280,6 +351,36 @@ def make_handler(runtime: LladaRuntime, model_name: str):
                 self.send_json(400, {"error": {"type": "invalid_json", "message": str(error)}})
             except Exception as error:  # noqa: BLE001  # pragma: no cover
                 self.send_json(500, {"error": {"type": "runtime_error", "message": str(error)}})
+
+        def handle_structured_read(self, request: dict[str, Any]) -> None:
+            prompt = request.get("prompt")
+            labels = request.get("labels")
+            images = request.get("images", [])
+            if not isinstance(prompt, str) or not prompt.strip():
+                raise RequestError("prompt must be a nonempty string")
+            if (
+                not isinstance(labels, list)
+                or not 2 <= len(labels) <= 9
+                or not all(isinstance(label, str) and label for label in labels)
+            ):
+                raise RequestError("labels must contain between 2 and 9 nonempty strings")
+            if len(labels) != len(set(labels)):
+                raise RequestError("labels must be unique")
+            if not isinstance(images, list) or not all(isinstance(url, str) for url in images):
+                raise RequestError("images must be an array of URLs")
+            started = time.perf_counter()
+            logits, token_ids, prompt_tokens = runtime.structured_read(prompt, labels, images)
+            self.send_json(
+                200,
+                {
+                    "model": model_name,
+                    "labels": labels,
+                    "label_token_ids": token_ids,
+                    "logits": logits,
+                    "usage": {"prompt_tokens": prompt_tokens},
+                    "diagnostics": {"elapsed_ms": (time.perf_counter() - started) * 1000},
+                },
+            )
 
         def log_message(self, format: str, *args: Any) -> None:
             print(format % args)

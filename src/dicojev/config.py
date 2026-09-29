@@ -11,6 +11,7 @@ from .backends import (
     DjevLocalBackend,
     JevCloudBackend,
     LayaLocalBackend,
+    LladaHTTPNativeReadRuntime,
     MockDecisionBackend,
     NativeDLMDecisionBackend,
 )
@@ -110,8 +111,16 @@ def create_backend(config: dict[str, Any], **dependencies: Any):
         )
     if kind == "native_dlm":
         runtime = dependencies.get("runtime")
+        if runtime is None and backend.get("runtime_kind") == "llada_http":
+            runtime = LladaHTTPNativeReadRuntime(
+                base_url=backend.get("base_url", "http://127.0.0.1:8002"),
+                timeout_seconds=backend.get("timeout_seconds", 600),
+                transport=dependencies.get("transport"),
+            )
         if runtime is None:
-            raise ConfigurationError("native_dlm requires a same-process read runtime")
+            raise ConfigurationError(
+                "native_dlm requires an injected read runtime or runtime_kind: llada_http"
+            )
         return NativeDLMDecisionBackend(
             runtime,
             label_validator=dependencies.get("label_validator"),

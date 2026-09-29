@@ -1,6 +1,11 @@
 from .cross_encoder import CrossEncoderDecisionBackend, SentenceTransformersScorer
 from .mock import MockDecisionBackend
-from .native_dlm import NativeDLMDecisionBackend, NativeReadRequest, build_native_read_request
+from .native_dlm import (
+    LladaHTTPNativeReadRuntime,
+    NativeDLMDecisionBackend,
+    NativeReadRequest,
+    build_native_read_request,
+)
 from .systemone import (
     DjevLocalBackend,
     JevCloudBackend,
@@ -13,6 +18,7 @@ __all__ = [
     "DjevLocalBackend",
     "JevCloudBackend",
     "LayaLocalBackend",
+    "LladaHTTPNativeReadRuntime",
     "MockDecisionBackend",
     "NativeDLMDecisionBackend",
     "NativeReadRequest",

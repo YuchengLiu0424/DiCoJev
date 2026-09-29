@@ -23,6 +23,22 @@ DiffusionGemma runtime must score the request's exact label set on the supplied 
 multimodal state. This deliberate boundary prevents generated text or a chat-completion probability
 from being misreported as a structured read.
 
-The current LLaDA HTTP server exposes generation, not label logits. Connecting it to the native
-backend therefore requires a same-process scoring implementation or a new explicit logit endpoint;
-that hardware-dependent integration is the next v3 runtime task.
+The LLaDA HTTP server now exposes `/v1/structured-read`. Generation and structured reads share one
+loaded model process. The endpoint appends the checkpoint's diffusion mask token, validates that
+every requested label maps to exactly one tokenizer token, performs one model forward pass, and
+returns only the requested label logits. `LladaHTTPNativeReadRuntime` connects that endpoint to the
+provider-neutral backend.
+
+## Live runtime evidence
+
+The first CPU-only live run completed on 2026-09-29:
+
+- Text coverage and selection completed in 27.6 seconds. Coverage was 0.859; candidate `A` was
+  selected with probability 0.9958.
+- A native one-pixel PNG reached the SigLIP image processor and completed both reads in 997.9
+  seconds. Coverage was 0.684; candidate `A` was selected with probability 0.9930.
+
+The normalized evidence is stored in `benchmarks/v3_native_read.json`. These are correctness
+measurements, not calibrated probabilities or an interactive performance claim. The image path
+currently recomputes vision features for coverage and selection, making prepared-state caching the
+next optimization target.
