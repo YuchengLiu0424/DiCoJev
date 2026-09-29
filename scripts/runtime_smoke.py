@@ -24,13 +24,17 @@ async def main() -> None:
     parser.add_argument("--base-url", default="http://127.0.0.1:8000")
     parser.add_argument("--model", default=DEFAULT_MODEL)
     parser.add_argument("--timeout", type=float, default=120)
+    parser.add_argument("--max-completion-tokens", type=int)
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
     generator = (
         MercuryGenerator(timeout_seconds=args.timeout)
         if args.generator == "mercury"
         else DiffusionGemmaGenerator(
-            base_url=args.base_url, model=args.model, timeout_seconds=args.timeout
+            base_url=args.base_url,
+            model=args.model,
+            timeout_seconds=args.timeout,
+            max_completion_tokens=args.max_completion_tokens,
         )
     )
     request = DecisionRequest(

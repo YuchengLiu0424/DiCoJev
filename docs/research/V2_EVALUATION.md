@@ -47,6 +47,16 @@ isolated Transformers 4.40 environment, returned valid candidate JSON through th
 OpenAI-compatible server, and correctly identified a native red PNG as `red`. The image request
 took about 447 seconds on CPU, so it is a correctness path rather than an interactive deployment.
 
+The LLaDA server was subsequently exercised through the complete initial-plus-feedback expansion
+path with a 32-token completion cap. Both rounds returned schema-valid, distinct actions. The
+initial round took about 289 seconds and expansion took about 454 seconds on CPU. The server now
+uses the checkpoint's official chat template, validates requests, reports real token usage, rejects
+empty generations, normalizes provider-added candidate fields, emits startup diagnostics, and
+shuts down cleanly. `scripts/start_llada.ps1` provides the supported local launch path.
+
 The cross-runtime record is stored in `benchmarks/v2_runtime_matrix.json`. Djev remains an explicit
-hardware-limited reference rather than a failed local pipeline. These results close the stated v2
-runtime gates and support an `v2.0.0-rc1` release candidate.
+hardware-limited reference rather than a failed local pipeline. Mercury is the practical v2 online
+runtime; DiffusionGemma and LLaDA are verified local correctness paths whose CPU latency is not
+interactive. With those deployment boundaries documented, the functional, formatting, test, and
+runtime gates support the final `v2.0.0` release. Remaining structured-generation robustness and
+local-runtime performance work is scoped in `docs/research/V3_HANDOFF.md`.

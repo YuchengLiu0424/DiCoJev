@@ -36,6 +36,15 @@
         "completion_tokens": 4,
         "latency_ms": 447267.4,
         "content": "red"
+      },
+      "controller_loop": {
+        "status": "pass",
+        "max_completion_tokens": 32,
+        "initial_latency_ms": 288908.45,
+        "expansion_latency_ms": 454001.41,
+        "initial_action": "send Draftverified_recipients",
+        "expansion_action": "send Draftun_recipients",
+        "notes": "Both rounds returned schema-valid, distinct actions after response normalization; CPU latency makes this a correctness path, not an interactive deployment."
       }
     },
     "djev": {
