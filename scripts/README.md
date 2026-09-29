@@ -11,3 +11,9 @@ per-round report with `--output results/v2_controlled.json`.
 
 `evaluate_v2_jev_deletion.py` runs the fixed matched candidate-deletion pair through hosted Jev and
 requires an explicit output path so the normalized live evidence is retained.
+
+`llada_openai_server.py` serves the separately downloaded LLaDA-V checkpoint on port 8002 using
+its dedicated Python environment. It initializes the SigLIP architecture locally and loads the
+vision weights embedded in the six checkpoint shards, so inference does not require a second
+model download. `runtime_matrix.py` reports configured credentials, local weight presence, and
+live endpoint availability without printing secret values.
