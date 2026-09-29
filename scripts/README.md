@@ -34,3 +34,8 @@ both attempts. Configuration can select LLaDA with `generator_kind: llada`.
 `native_read_smoke.py` sends the same state and candidate set through the LLaDA server's explicit
 masked-label `/v1/structured-read` endpoint. It performs separate binary coverage and categorical
 selection reads and can persist normalized evidence with `--output`.
+
+The server keeps up to two projected vision-feature entries in a content-addressed LRU cache by
+default. Set `LLADA_VISION_CACHE_ENTRIES=0` to disable it or another nonnegative integer to change
+the bound. Structured-read diagnostics report `vision_cache_hit`; prompt-specific language-model
+forwards are never cached.

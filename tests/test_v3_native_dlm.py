@@ -128,7 +128,10 @@ async def test_llada_http_runtime_transports_native_read_canvas():
 
     def handler(request):
         captured.update(__import__("json").loads(request.content))
-        return httpx.Response(200, json={"logits": [-1.0, 1.0]})
+        return httpx.Response(
+            200,
+            json={"logits": [-1.0, 1.0], "diagnostics": {"vision_cache_hit": False}},
+        )
 
     runtime = LladaHTTPNativeReadRuntime(transport=httpx.MockTransport(handler))
     read = build_native_read_request(
@@ -138,3 +141,4 @@ async def test_llada_http_runtime_transports_native_read_canvas():
     assert captured["labels"] == ["0", "1"]
     assert captured["prompt"] == read.prompt
     assert captured["images"] == []
+    assert runtime.diagnostics["coverage"] == {"vision_cache_hit": False}

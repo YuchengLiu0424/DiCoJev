@@ -40,5 +40,8 @@ The first CPU-only live run completed on 2026-09-29:
 
 The normalized evidence is stored in `benchmarks/v3_native_read.json`. These are correctness
 measurements, not calibrated probabilities or an interactive performance claim. The image path
-currently recomputes vision features for coverage and selection, making prepared-state caching the
-next optimization target.
+now keeps a bounded content-addressed LRU cache of projected vision features. On the same image and
+prompts, total latency fell from 997.9 to 890.1 seconds (10.8%) and the logits were identical. The
+coverage read populated the cache and the selection read reported a cache hit. The hit still took
+412.3 seconds because the long multimodal language-model forward is repeated; batching the two
+masked reads into one forward is therefore the next performance target.

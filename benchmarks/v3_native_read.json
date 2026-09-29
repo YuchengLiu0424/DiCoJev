@@ -21,6 +21,24 @@
     "selected_id": "A",
     "selection_confidence": 0.9930423911926235,
     "selection_logits": [13.1328125, 8.171875],
-    "notes": "Both reads recomputed vision features; caching the prepared multimodal state is required before interactive use."
+    "notes": "Baseline before caching; both reads recomputed vision features."
+  },
+  "native_image_cached": {
+    "status": "pass",
+    "input": "same one-pixel red PNG and prompts as native_image",
+    "latency_ms": 890084.35,
+    "improvement_percent": 10.8,
+    "coverage": 0.6842640244786128,
+    "selected_id": "A",
+    "selection_confidence": 0.9930423911926235,
+    "coverage_read": {
+      "latency_ms": 477503.35,
+      "vision_cache_hit": false
+    },
+    "selection_read": {
+      "latency_ms": 412307.26,
+      "vision_cache_hit": true
+    },
+    "notes": "Projected vision features were reused and logits were identical. The remaining cost is dominated by two long multimodal language-model forwards."
   }
 }

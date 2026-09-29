@@ -4,6 +4,7 @@ import json
 import threading
 import urllib.error
 import urllib.request
+from collections import OrderedDict
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 from types import SimpleNamespace
@@ -65,7 +66,7 @@ def test_llada_http_contract_reports_real_usage_and_validates_requests():
             assert prompt == "choose"
             assert labels == ["A", "N"]
             assert images == []
-            return [2.0, -1.0], [32, 45], 7
+            return [2.0, -1.0], [32, 45], 7, True
 
     server = ThreadingHTTPServer(("127.0.0.1", 0), module.make_handler(Runtime(), "fixture"))
     thread = threading.Thread(target=server.serve_forever, daemon=True)
@@ -115,6 +116,7 @@ def test_llada_http_contract_reports_real_usage_and_validates_requests():
         assert native_payload["logits"] == [2.0, -1.0]
         assert native_payload["label_token_ids"] == [32, 45]
         assert native_payload["usage"] == {"prompt_tokens": 7}
+        assert native_payload["diagnostics"]["vision_cache_hit"] is True
     finally:
         server.shutdown()
         server.server_close()
@@ -127,3 +129,37 @@ def test_llada_json_normalization_drops_provider_candidate_ids():
         '{"candidates":[{"id":"B","action":"verify","tool":"mail"}]}'
     )
     assert json.loads(content) == {"candidates": [{"action": "verify", "tool": "mail"}]}
+
+
+def test_llada_vision_features_are_lru_cached_by_image_content():
+    module = load_script("llada_openai_server.py")
+    calls = []
+
+    class Image:
+        mode = "RGB"
+        size = (1, 1)
+
+        def tobytes(self):
+            return b"pixel"
+
+    class Tensor:
+        ndim = 4
+
+    class Model:
+        def encode_images(self, tensors):
+            calls.append(tensors)
+            return object()
+
+    runtime = object.__new__(module.LladaRuntime)
+    runtime.model = Model()
+    runtime.torch = SimpleNamespace(cat=lambda tensors, dim: (tuple(tensors), dim))
+    runtime.vision_cache_entries = 1
+    runtime.vision_feature_cache = OrderedDict()
+
+    first, first_hit = runtime._image_features([Image()], [Tensor()])
+    second, second_hit = runtime._image_features([Image()], [Tensor()])
+
+    assert first is second
+    assert first_hit is False
+    assert second_hit is True
+    assert len(calls) == 1

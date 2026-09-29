@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+import hashlib
 import io
 import json
 import os
@@ -12,6 +13,7 @@ import sys
 import threading
 import time
 import urllib.request
+from collections import OrderedDict
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
@@ -133,6 +135,31 @@ class LladaRuntime:
         self.process_images = process_images
         self.tokenizer_image_token = tokenizer_image_token
         self.lock = threading.Lock()
+        self.vision_cache_entries = max(0, int(os.getenv("LLADA_VISION_CACHE_ENTRIES", "2")))
+        self.vision_feature_cache: OrderedDict[str, Any] = OrderedDict()
+
+    @staticmethod
+    def _vision_cache_key(images: list[Any]) -> str:
+        digest = hashlib.sha256()
+        for image in images:
+            digest.update(str(image.mode).encode())
+            digest.update(str(image.size).encode())
+            digest.update(image.tobytes())
+        return digest.hexdigest()
+
+    def _image_features(self, images: list[Any], image_tensors: list[Any]) -> tuple[Any, bool]:
+        key = self._vision_cache_key(images)
+        if key in self.vision_feature_cache:
+            features = self.vision_feature_cache.pop(key)
+            self.vision_feature_cache[key] = features
+            return features, True
+        tensors = [tensor.unsqueeze(0) if tensor.ndim == 3 else tensor for tensor in image_tensors]
+        features = self.model.encode_images(self.torch.cat(tensors, dim=0))
+        if self.vision_cache_entries:
+            self.vision_feature_cache[key] = features
+            while len(self.vision_feature_cache) > self.vision_cache_entries:
+                self.vision_feature_cache.popitem(last=False)
+        return features, False
 
     def complete(
         self,
@@ -187,7 +214,7 @@ class LladaRuntime:
 
     def structured_read(
         self, prompt: str, labels: list[str], image_urls: list[str]
-    ) -> tuple[list[float], list[int], int]:
+    ) -> tuple[list[float], list[int], int, bool | None]:
         label_token_ids: list[int] = []
         for label in labels:
             token_ids = self.tokenizer(label, add_special_tokens=False).input_ids
@@ -223,23 +250,33 @@ class LladaRuntime:
         mask = self.torch.tensor([[mask_token_id]], dtype=input_ids.dtype)
         input_ids = self.torch.cat([input_ids, mask], dim=-1)
         attention_mask = self.torch.ones_like(input_ids)
+        vision_cache_hit: bool | None = None
         with self.lock, self.torch.no_grad():
-            (
-                prepared_input_ids,
-                position_ids,
-                prepared_attention_mask,
-                _,
-                inputs_embeds,
-                _,
-            ) = self.model.prepare_inputs_labels_for_multimodal(
-                input_ids,
-                None,
-                attention_mask,
-                None,
-                None,
-                images=image_tensors,
-                image_sizes=image_sizes,
-            )
+            original_encode_images = None
+            if images:
+                image_features, vision_cache_hit = self._image_features(images, image_tensors)
+                original_encode_images = self.model.encode_images
+                self.model.encode_images = lambda _images: image_features
+            try:
+                (
+                    prepared_input_ids,
+                    position_ids,
+                    prepared_attention_mask,
+                    _,
+                    inputs_embeds,
+                    _,
+                ) = self.model.prepare_inputs_labels_for_multimodal(
+                    input_ids,
+                    None,
+                    attention_mask,
+                    None,
+                    None,
+                    images=image_tensors,
+                    image_sizes=image_sizes,
+                )
+            finally:
+                if original_encode_images is not None:
+                    self.model.encode_images = original_encode_images
             output = self.model.model(
                 input_ids=prepared_input_ids,
                 position_ids=position_ids,
@@ -249,7 +286,7 @@ class LladaRuntime:
             )
             logits = self.model.lm_head(output.last_hidden_state)
         logits = logits[0, -1, label_token_ids].float().tolist()
-        return logits, label_token_ids, int(input_ids.shape[-1])
+        return logits, label_token_ids, int(input_ids.shape[-1]), vision_cache_hit
 
 
 def make_handler(runtime: LladaRuntime, model_name: str):
@@ -369,7 +406,9 @@ def make_handler(runtime: LladaRuntime, model_name: str):
             if not isinstance(images, list) or not all(isinstance(url, str) for url in images):
                 raise RequestError("images must be an array of URLs")
             started = time.perf_counter()
-            logits, token_ids, prompt_tokens = runtime.structured_read(prompt, labels, images)
+            logits, token_ids, prompt_tokens, vision_cache_hit = runtime.structured_read(
+                prompt, labels, images
+            )
             self.send_json(
                 200,
                 {
@@ -378,7 +417,10 @@ def make_handler(runtime: LladaRuntime, model_name: str):
                     "label_token_ids": token_ids,
                     "logits": logits,
                     "usage": {"prompt_tokens": prompt_tokens},
-                    "diagnostics": {"elapsed_ms": (time.perf_counter() - started) * 1000},
+                    "diagnostics": {
+                        "elapsed_ms": (time.perf_counter() - started) * 1000,
+                        "vision_cache_hit": vision_cache_hit,
+                    },
                 },
             )
 

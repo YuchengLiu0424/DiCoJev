@@ -58,6 +58,7 @@ class LladaHTTPNativeReadRuntime:
         self.base_url = base_url.rstrip("/")
         self.timeout_seconds = timeout_seconds
         self.transport = transport
+        self.diagnostics: dict[str, object] = {}
 
     async def read(self, request: NativeReadRequest) -> Sequence[float]:
         images = [materialize_image(image).url for image in request.state.images]
@@ -78,6 +79,9 @@ class LladaHTTPNativeReadRuntime:
         logits = payload.get("logits") if isinstance(payload, dict) else None
         if not isinstance(logits, list):
             raise BackendUnavailable("LLaDA-V structured-read response omitted logits")
+        diagnostics = payload.get("diagnostics")
+        if isinstance(diagnostics, dict):
+            self.diagnostics[request.mode] = diagnostics
         return logits
 
 
@@ -193,6 +197,16 @@ class NativeDLMDecisionBackend:
         selection_values = _softmax(selection_logits)
         probabilities = dict(zip(selection_request.labels, selection_values, strict=True))
         selected_id = max(probabilities, key=probabilities.__getitem__)
+        diagnostics = {
+            "runtime": self.runtime_name,
+            "coverage_labels": list(coverage_request.labels),
+            "coverage_logits": coverage_logits,
+            "selection_labels": list(selection_request.labels),
+            "selection_logits": selection_logits,
+        }
+        runtime_diagnostics = getattr(self.runtime, "diagnostics", None)
+        if isinstance(runtime_diagnostics, dict) and runtime_diagnostics:
+            diagnostics["runtime_reads"] = runtime_diagnostics
         return DecisionBackendResult(
             backend="native_dlm",
             coverage=CoverageScore(raw=coverage_probabilities[1], method="native_binary_read"),
@@ -201,12 +215,6 @@ class NativeDLMDecisionBackend:
                 probabilities=probabilities,
                 confidence_raw=probabilities[selected_id],
             ),
-            diagnostics={
-                "runtime": self.runtime_name,
-                "coverage_labels": list(coverage_request.labels),
-                "coverage_logits": coverage_logits,
-                "selection_labels": list(selection_request.labels),
-                "selection_logits": selection_logits,
-            },
+            diagnostics=diagnostics,
             latency_ms=(perf_counter() - started) * 1000,
         )
