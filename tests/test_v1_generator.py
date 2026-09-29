@@ -5,7 +5,7 @@ import pytest
 
 from dicojev.errors import CapabilityMismatch, ConfigurationError, MalformedProviderResponse
 from dicojev.feedback import DeterministicFeedbackCompiler
-from dicojev.generator import DiffusionGemmaGenerator, MercuryGenerator
+from dicojev.generator import DiffusionGemmaGenerator, LladaGenerator, MercuryGenerator
 from dicojev.schemas import (
     Candidate,
     DecisionRequest,
@@ -72,6 +72,59 @@ async def test_generator_consumes_typed_loop_context_without_repeating_prior_can
 def test_generator_rejects_nonpositive_completion_cap():
     with pytest.raises(ValueError, match="must be positive"):
         DiffusionGemmaGenerator(max_completion_tokens=0)
+
+
+@pytest.mark.asyncio
+async def test_shared_structured_repair_regenerates_once_and_aggregates_usage():
+    responses = [
+        {
+            "choices": [{"message": {"content": "not json"}}],
+            "usage": {"prompt_tokens": 5, "completion_tokens": 2, "total_tokens": 7},
+        },
+        {
+            "choices": [{"message": {"content": '{"candidates":["Review"]}'}}],
+            "usage": {"prompt_tokens": 8, "completion_tokens": 4, "total_tokens": 12},
+        },
+    ]
+    requests = []
+
+    def handler(request):
+        requests.append(json.loads(request.content))
+        return httpx.Response(200, json=responses[len(requests) - 1])
+
+    generator = DiffusionGemmaGenerator(transport=httpx.MockTransport(handler))
+    spec = await generator.generate(DecisionRequest(state=MultimodalState(text="x"), goal="Choose"))
+
+    assert [candidate.action for candidate in spec.candidates] == ["Review"]
+    assert generator.last_repair_count == 1
+    assert generator.last_usage == {
+        "prompt_tokens": 13,
+        "completion_tokens": 6,
+        "total_tokens": 19,
+    }
+    assert len(requests) == 2
+    assert "response was rejected" in requests[1]["messages"][-1]["content"]
+
+
+@pytest.mark.asyncio
+async def test_llada_adapter_uses_local_runtime_contract():
+    captured = {}
+
+    def handler(request):
+        captured.update(json.loads(request.content))
+        return httpx.Response(200, json=completion([{"action": "Review"}]))
+
+    generator = LladaGenerator(transport=httpx.MockTransport(handler))
+    result = await generator.generate(
+        DecisionRequest(state=MultimodalState(text="x"), goal="Choose")
+    )
+
+    assert result.candidates[0].action == "Review"
+    assert generator.provider_name == "LLaDA-V"
+    assert generator.model == "llada-v-local"
+    assert captured["max_tokens"] == 32
+    assert captured["steps"] == 8
+    assert captured["temperature"] == 0.2
 
 
 @pytest.mark.asyncio

@@ -1,0 +1,289 @@
+"""Project-owned structured reads over an injected diffusion-language runtime."""
+
+from __future__ import annotations
+
+import inspect
+import json
+import math
+import re
+from collections.abc import Awaitable, Callable, Sequence
+from dataclasses import dataclass
+from time import perf_counter
+from typing import Literal, Protocol
+
+import httpx
+
+from ..errors import BackendUnavailable
+from ..multimodal import materialize_image
+from ..schemas import (
+    BackendCapabilities,
+    Candidate,
+    CoverageScore,
+    DecisionBackendResult,
+    DecisionSpec,
+    MultimodalState,
+    SelectionScore,
+)
+
+_LABEL = re.compile(r"^[A-Z]$")
+
+
+@dataclass(frozen=True)
+class NativeReadRequest:
+    """Deterministic canvas passed to a same-process native read implementation."""
+
+    mode: Literal["coverage", "selection"]
+    prompt: str
+    labels: tuple[str, ...]
+    state: MultimodalState
+
+
+class NativeReadRuntime(Protocol):
+    def read(self, request: NativeReadRequest) -> Sequence[float] | Awaitable[Sequence[float]]: ...
+
+
+LabelValidator = Callable[[str], bool]
+
+
+class LladaHTTPNativeReadRuntime:
+    """Use the structured-read endpoint served by the shared LLaDA-V model process."""
+
+    def __init__(
+        self,
+        *,
+        base_url: str = "http://127.0.0.1:8002",
+        timeout_seconds: float = 600,
+        transport: httpx.AsyncBaseTransport | None = None,
+        batch_reads: bool = False,
+    ) -> None:
+        self.base_url = base_url.rstrip("/")
+        self.timeout_seconds = timeout_seconds
+        self.transport = transport
+        self.supports_batch_reads = batch_reads
+        self.diagnostics: dict[str, object] = {}
+
+    async def read(self, request: NativeReadRequest) -> Sequence[float]:
+        images = [materialize_image(image).url for image in request.state.images]
+        try:
+            async with httpx.AsyncClient(
+                base_url=self.base_url,
+                timeout=self.timeout_seconds,
+                transport=self.transport,
+            ) as client:
+                response = await client.post(
+                    "/v1/structured-read",
+                    json={"prompt": request.prompt, "labels": request.labels, "images": images},
+                )
+                response.raise_for_status()
+                payload = response.json()
+        except (httpx.HTTPError, ValueError) as error:
+            raise BackendUnavailable("LLaDA-V structured-read service unavailable") from error
+        logits = payload.get("logits") if isinstance(payload, dict) else None
+        if not isinstance(logits, list):
+            raise BackendUnavailable("LLaDA-V structured-read response omitted logits")
+        diagnostics = payload.get("diagnostics")
+        if isinstance(diagnostics, dict):
+            self.diagnostics[request.mode] = diagnostics
+        return logits
+
+    async def read_many(self, requests: Sequence[NativeReadRequest]) -> list[Sequence[float]]:
+        if not requests:
+            return []
+        state = requests[0].state
+        if any(request.state != state for request in requests[1:]):
+            raise BackendUnavailable("batched native reads must share one multimodal state")
+        images = [materialize_image(image).url for image in state.images]
+        try:
+            async with httpx.AsyncClient(
+                base_url=self.base_url,
+                timeout=self.timeout_seconds,
+                transport=self.transport,
+            ) as client:
+                response = await client.post(
+                    "/v1/structured-read-batch",
+                    json={
+                        "reads": [
+                            {"prompt": request.prompt, "labels": request.labels}
+                            for request in requests
+                        ],
+                        "images": images,
+                    },
+                )
+                response.raise_for_status()
+                payload = response.json()
+        except (httpx.HTTPError, ValueError) as error:
+            raise BackendUnavailable("LLaDA-V batched structured-read failed") from error
+        results = payload.get("results") if isinstance(payload, dict) else None
+        if not isinstance(results, list) or len(results) != len(requests):
+            raise BackendUnavailable("LLaDA-V batched structured-read returned malformed results")
+        logits = [result.get("logits") if isinstance(result, dict) else None for result in results]
+        if any(not isinstance(values, list) for values in logits):
+            raise BackendUnavailable("LLaDA-V batched structured-read omitted logits")
+        diagnostics = payload.get("diagnostics")
+        if isinstance(diagnostics, dict):
+            self.diagnostics = {"batch": diagnostics}
+        return logits
+
+
+def _softmax(logits: Sequence[float]) -> list[float]:
+    values = [float(value) for value in logits]
+    if not values or not all(math.isfinite(value) for value in values):
+        raise BackendUnavailable("native DLM returned empty or non-finite logits")
+    maximum = max(values)
+    weights = [math.exp(value - maximum) for value in values]
+    total = sum(weights)
+    return [weight / total for weight in weights]
+
+
+def _candidate_block(candidates: list[Candidate]) -> str:
+    return json.dumps(
+        [{"label": candidate.id, "action": candidate.action} for candidate in candidates],
+        ensure_ascii=False,
+        separators=(",", ":"),
+        sort_keys=True,
+    )
+
+
+def build_native_read_request(
+    mode: Literal["coverage", "selection"],
+    state: MultimodalState,
+    spec: DecisionSpec,
+    candidates: list[Candidate],
+) -> NativeReadRequest:
+    """Construct the stable prompt/canvas contract used by native runtimes."""
+    candidate_json = _candidate_block(candidates)
+    state_json = json.dumps(
+        state.structured, ensure_ascii=False, separators=(",", ":"), sort_keys=True
+    )
+    shared = (
+        f"STATE_TEXT\n{state.text}\nSTATE_JSON\n{state_json}\nTASK\n{spec.task}\n"
+        f"CANDIDATES\n{candidate_json}\n"
+    )
+    if mode == "coverage":
+        return NativeReadRequest(
+            mode=mode,
+            prompt=(
+                shared + f"QUESTION\n{spec.coverage_instruction}\n"
+                "OUTPUT_LABEL\nChoose 1 if at least one candidate is acceptable, otherwise 0."
+            ),
+            labels=("0", "1"),
+            state=state,
+        )
+    return NativeReadRequest(
+        mode=mode,
+        prompt=(
+            shared + f"QUESTION\n{spec.selection_instruction}\n"
+            "OUTPUT_LABEL\nChoose exactly one candidate label."
+        ),
+        labels=tuple(candidate.id or "" for candidate in candidates),
+        state=state,
+    )
+
+
+class NativeDLMDecisionBackend:
+    """Normalize binary coverage and categorical native DLM reads."""
+
+    capabilities = BackendCapabilities(
+        supports_images=True,
+        supports_native_multimodal=True,
+        requires_single_token_labels=True,
+    )
+
+    def __init__(
+        self,
+        runtime: NativeReadRuntime,
+        *,
+        label_validator: LabelValidator | None = None,
+        runtime_name: str = "native-dlm",
+    ) -> None:
+        self.runtime = runtime
+        self.label_validator = label_validator or (lambda label: bool(_LABEL.fullmatch(label)))
+        self.runtime_name = runtime_name
+
+    def _validate_candidates(self, candidates: list[Candidate]) -> None:
+        if not candidates:
+            raise BackendUnavailable("native DLM requires at least one candidate")
+        labels = [candidate.id for candidate in candidates]
+        if any(label is None or not self.label_validator(label) for label in labels):
+            raise BackendUnavailable("native DLM candidate labels must be valid single tokens")
+        if len(labels) != len(set(labels)):
+            raise BackendUnavailable("native DLM candidate labels must be unique")
+
+    async def _read(self, request: NativeReadRequest) -> list[float]:
+        try:
+            result = self.runtime.read(request)
+            logits = list(await result if inspect.isawaitable(result) else result)
+        except BackendUnavailable:
+            raise
+        except Exception as error:
+            raise BackendUnavailable(f"{request.mode} native DLM read failed") from error
+        if len(logits) != len(request.labels):
+            raise BackendUnavailable(
+                f"{request.mode} native DLM read returned {len(logits)} logits "
+                f"for {len(request.labels)} labels"
+            )
+        return logits
+
+    async def _read_many(self, requests: list[NativeReadRequest]) -> list[list[float]]:
+        batch_reader = (
+            getattr(self.runtime, "read_many", None)
+            if getattr(self.runtime, "supports_batch_reads", False)
+            else None
+        )
+        if batch_reader is None:
+            return [await self._read(request) for request in requests]
+        try:
+            result = batch_reader(requests)
+            batches = list(await result if inspect.isawaitable(result) else result)
+        except BackendUnavailable:
+            raise
+        except Exception as error:
+            raise BackendUnavailable("batched native DLM read failed") from error
+        if len(batches) != len(requests):
+            raise BackendUnavailable("batched native DLM read returned the wrong result count")
+        normalized = []
+        for request, logits in zip(requests, batches, strict=True):
+            values = list(logits)
+            if len(values) != len(request.labels):
+                raise BackendUnavailable(
+                    f"{request.mode} native DLM read returned {len(values)} logits "
+                    f"for {len(request.labels)} labels"
+                )
+            normalized.append(values)
+        return normalized
+
+    async def decide(
+        self, state: MultimodalState, spec: DecisionSpec, candidates: list[Candidate]
+    ) -> DecisionBackendResult:
+        self._validate_candidates(candidates)
+        started = perf_counter()
+        coverage_request = build_native_read_request("coverage", state, spec, candidates)
+        selection_request = build_native_read_request("selection", state, spec, candidates)
+        coverage_logits, selection_logits = await self._read_many(
+            [coverage_request, selection_request]
+        )
+        coverage_probabilities = _softmax(coverage_logits)
+        selection_values = _softmax(selection_logits)
+        probabilities = dict(zip(selection_request.labels, selection_values, strict=True))
+        selected_id = max(probabilities, key=probabilities.__getitem__)
+        diagnostics = {
+            "runtime": self.runtime_name,
+            "coverage_labels": list(coverage_request.labels),
+            "coverage_logits": coverage_logits,
+            "selection_labels": list(selection_request.labels),
+            "selection_logits": selection_logits,
+        }
+        runtime_diagnostics = getattr(self.runtime, "diagnostics", None)
+        if isinstance(runtime_diagnostics, dict) and runtime_diagnostics:
+            diagnostics["runtime_reads"] = runtime_diagnostics
+        return DecisionBackendResult(
+            backend="native_dlm",
+            coverage=CoverageScore(raw=coverage_probabilities[1], method="native_binary_read"),
+            selection=SelectionScore(
+                selected_id=selected_id,
+                probabilities=probabilities,
+                confidence_raw=probabilities[selected_id],
+            ),
+            diagnostics=diagnostics,
+            latency_ms=(perf_counter() - started) * 1000,
+        )

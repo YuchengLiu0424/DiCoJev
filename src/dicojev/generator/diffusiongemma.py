@@ -62,8 +62,8 @@ class _CompactCandidates(BaseModel):
         return normalized
 
 
-class DiffusionGemmaGenerator:
-    """Generate project-native DecisionSpec JSON through an HTTP model server."""
+class OpenAICompatibleCandidateGenerator:
+    """Generate project-native DecisionSpec JSON through an OpenAI-compatible server."""
 
     capabilities = GeneratorCapabilities(supports_images=True, supports_native_multimodal=True)
     provider_name = "DiffusionGemma"
@@ -80,17 +80,22 @@ class DiffusionGemmaGenerator:
         transport: httpx.AsyncBaseTransport | None = None,
         api_key: str | None = None,
         max_completion_tokens: int | None = None,
+        max_repair_attempts: int = 1,
     ) -> None:
         if max_completion_tokens is not None and max_completion_tokens < 1:
             raise ValueError("max_completion_tokens must be positive")
+        if max_repair_attempts < 0:
+            raise ValueError("max_repair_attempts must not be negative")
         self.base_url = base_url.rstrip("/")
         self.model = model
         self.timeout_seconds = timeout_seconds
         self.transport = transport
         self.api_key = api_key
         self.max_completion_tokens = max_completion_tokens
+        self.max_repair_attempts = max_repair_attempts
         self.last_latency_ms = 0.0
         self.last_usage: dict[str, Any] = {}
+        self.last_repair_count = 0
 
     @staticmethod
     def _candidate_limit(request: DecisionRequest, context: LoopContext | None) -> int:
@@ -164,6 +169,23 @@ class DiffusionGemmaGenerator:
         return "/chat/completions" if self.base_url.endswith("/v1") else "/v1/chat/completions"
 
     @staticmethod
+    def _repair_messages(
+        messages: list[dict[str, Any]], content: str, error: MalformedProviderResponse
+    ) -> list[dict[str, Any]]:
+        return [
+            *messages,
+            {"role": "assistant", "content": content},
+            {
+                "role": "user",
+                "content": (
+                    f"The response was rejected: {error}. Return a corrected JSON object only. "
+                    "Use exactly one candidates array, respect its requested limit, omit candidate "
+                    "IDs, and do not repeat prior actions."
+                ),
+            },
+        ]
+
+    @staticmethod
     def _parse_compact(content: str) -> _CompactCandidates:
         def parse(value: str) -> _CompactCandidates | None:
             decoder = json.JSONDecoder()
@@ -232,6 +254,9 @@ class DiffusionGemmaGenerator:
     ) -> DecisionSpec:
         limit = self._candidate_limit(request, context)
         started = perf_counter()
+        messages = self.build_messages(request, context)
+        total_usage: dict[str, Any] = {}
+        self.last_repair_count = 0
         try:
             async with httpx.AsyncClient(
                 base_url=self.base_url,
@@ -239,30 +264,49 @@ class DiffusionGemmaGenerator:
                 transport=self.transport,
                 headers=({"Authorization": f"Bearer {self.api_key}"} if self.api_key else None),
             ) as client:
-                response = await client.post(
-                    self._chat_completions_path(),
-                    json={
-                        "model": self.model,
-                        "messages": self.build_messages(request, context),
-                        "response_format": {"type": "json_object"},
-                        "max_tokens": min(
-                            max(self.minimum_completion_tokens, 32 * limit + 32),
-                            self.max_completion_tokens or 10**9,
-                        ),
-                        **self.extra_request_fields,
-                    },
-                )
-                response.raise_for_status()
-                payload = response.json()
+                for attempt in range(self.max_repair_attempts + 1):
+                    response = await client.post(
+                        self._chat_completions_path(),
+                        json={
+                            "model": self.model,
+                            "messages": messages,
+                            "response_format": {"type": "json_object"},
+                            "max_tokens": min(
+                                max(self.minimum_completion_tokens, 32 * limit + 32),
+                                self.max_completion_tokens or 10**9,
+                            ),
+                            **self.extra_request_fields,
+                        },
+                    )
+                    response.raise_for_status()
+                    payload = response.json()
+                    usage = payload.get("usage", {}) if isinstance(payload, dict) else {}
+                    for key, value in usage.items():
+                        if isinstance(value, int | float):
+                            total_usage[key] = total_usage.get(key, 0) + value
+                    content = self._content(payload)
+                    try:
+                        result = self.parse_response(content, request, context)
+                        self.last_repair_count = attempt
+                        return result
+                    except MalformedProviderResponse as error:
+                        if attempt >= self.max_repair_attempts:
+                            raise
+                        messages = self._repair_messages(messages, content, error)
         except (httpx.HTTPError, ValueError) as error:
             raise GeneratorUnavailable(f"{self.provider_name} service unavailable") from error
         finally:
             self.last_latency_ms = (perf_counter() - started) * 1000
-        self.last_usage = payload.get("usage", {}) if isinstance(payload, dict) else {}
-        return self.parse_response(self._content(payload), request, context)
+            self.last_usage = total_usage
+
+        raise MalformedProviderResponse("generator exhausted structured-output repair attempts")
 
 
-class MercuryGenerator(DiffusionGemmaGenerator):
+class DiffusionGemmaGenerator(OpenAICompatibleCandidateGenerator):
+    """DiffusionGemma candidate generator using an OpenAI-compatible runtime."""
+
+
+class MercuryGenerator(OpenAICompatibleCandidateGenerator):
     """Hosted Inception Mercury text DLM through its OpenAI-compatible API."""
 
     capabilities = GeneratorCapabilities()

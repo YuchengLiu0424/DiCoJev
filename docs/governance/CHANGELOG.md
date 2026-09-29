@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+- Began v3 with a project-owned `NativeDLMDecisionBackend`, deterministic coverage/selection
+  canvases, strict label/logit validation, normalized probabilities, and injectable same-process
+  runtime support.
+- Added a shared-process LLaDA-V masked-label endpoint and verified real text and native-image
+  coverage/selection reads on the complete local checkpoint.
+- Added bounded content-addressed vision-feature reuse with cache diagnostics and retained matched
+  before/after latency evidence.
+- Added opt-in batched coverage/selection reads and recorded the matched CPU regression, retaining
+  cached sequential reads as the default.
+- Added a first-class local `LladaGenerator` and configuration kind.
+- Centralized bounded structured-output regeneration across OpenAI-compatible generators with
+  aggregate repair, token-usage, and latency telemetry.
+
 - Replaced the abandoned external GPU-server plan with two supported generator paths: hosted
   Mercury for fast text decisions and the proven local DiffusionGemma runtime for local/native-image
   decisions.

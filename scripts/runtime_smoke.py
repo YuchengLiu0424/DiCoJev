@@ -6,7 +6,13 @@ import json
 from pathlib import Path
 
 from dicojev.feedback import DeterministicFeedbackCompiler
-from dicojev.generator import DEFAULT_MODEL, DiffusionGemmaGenerator, MercuryGenerator
+from dicojev.generator import (
+    DEFAULT_LLADA_MODEL,
+    DEFAULT_MODEL,
+    DiffusionGemmaGenerator,
+    LladaGenerator,
+    MercuryGenerator,
+)
 from dicojev.harness import CandidateRegistry
 from dicojev.schemas import (
     DecisionRequest,
@@ -20,23 +26,31 @@ from dicojev.schemas import (
 
 async def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--generator", choices=("local", "mercury"), default="local")
-    parser.add_argument("--base-url", default="http://127.0.0.1:8000")
+    parser.add_argument(
+        "--generator", choices=("diffusiongemma", "llada", "mercury", "local"), default="local"
+    )
+    parser.add_argument("--base-url")
     parser.add_argument("--model", default=DEFAULT_MODEL)
     parser.add_argument("--timeout", type=float, default=120)
     parser.add_argument("--max-completion-tokens", type=int)
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
-    generator = (
-        MercuryGenerator(timeout_seconds=args.timeout)
-        if args.generator == "mercury"
-        else DiffusionGemmaGenerator(
-            base_url=args.base_url,
+    if args.generator == "mercury":
+        generator = MercuryGenerator(timeout_seconds=args.timeout)
+    elif args.generator == "llada":
+        generator = LladaGenerator(
+            base_url=args.base_url or "http://127.0.0.1:8002",
+            model=args.model if args.model != DEFAULT_MODEL else DEFAULT_LLADA_MODEL,
+            timeout_seconds=args.timeout,
+            max_completion_tokens=args.max_completion_tokens or 32,
+        )
+    else:
+        generator = DiffusionGemmaGenerator(
+            base_url=args.base_url or "http://127.0.0.1:8000",
             model=args.model,
             timeout_seconds=args.timeout,
             max_completion_tokens=args.max_completion_tokens,
         )
-    )
     request = DecisionRequest(
         state=MultimodalState(text="A draft email is ready but recipients are unverified."),
         goal="Choose the safest useful next action",
