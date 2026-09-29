@@ -127,6 +127,15 @@ class PlattCalibrator:
         return _sigmoid(self.slope * _logit(probability) + self.intercept)
 
     @classmethod
+    def from_artifact(cls, artifact: CalibrationArtifact) -> PlattCalibrator:
+        if artifact.kind != "platt":
+            raise ValueError("expected a platt calibration artifact")
+        return cls(
+            slope=artifact.parameters["slope"],
+            intercept=artifact.parameters["intercept"],
+        )
+
+    @classmethod
     def fit(
         cls,
         probabilities: Sequence[float],
@@ -187,6 +196,15 @@ class LogisticCoverageEstimator:
             weight * float(features.get(name, 0.0)) for name, weight in self.weights.items()
         )
         return _sigmoid(value)
+
+    @classmethod
+    def from_artifact(cls, artifact: CalibrationArtifact) -> LogisticCoverageEstimator:
+        if artifact.kind != "logistic_coverage":
+            raise ValueError("expected a logistic coverage artifact")
+        return cls(
+            {name: artifact.parameters[name] for name in artifact.feature_names},
+            intercept=artifact.parameters["intercept"],
+        )
 
     @classmethod
     def fit(

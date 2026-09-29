@@ -64,3 +64,9 @@ conformal routing, and separate calibration/candidate-quality/feedback ablations
 `v4_risk_latency_token.csv` is the plot-ready projection of the corresponding curve, and the SVG
 is the dependency-free rendering recreated by the same script. These files are controlled
 fixtures, not live-model performance evidence.
+
+The companion files `v4_jev_live.json`, `v4_jev_deletion_live.json`, and
+`v4_native_repeatability.json` contain real hosted-Jev and local-LLaDA measurements. They close the
+matched independent-reference, candidate-deletion, and fixed-configuration tolerance gates while
+remaining too small to support general model-performance claims. `v4_runtime_audit.json` records
+runtime availability without credential values.

@@ -47,7 +47,12 @@ reevaluated on an accelerator.
 
 `evaluate_v3.py` writes the matched Native/CrossEncoder/Djev acceptance comparison. Djev is run only
 when `DICOJEV_DJEV_URL` is configured; otherwise the artifact retains an explicit hardware-waiver
-status.
+status. When `JEV_API_KEY` is configured, the same candidates also reach hosted Jev as the real
+independent reference for hosts where the local GPU deployment is unavailable.
+
+`evaluate_v3_repeatability.py` performs at least two fixed-configuration sequential native reads,
+persists every logit/decision/latency, and fails unless the maximum logit span is within the
+declared tolerance and the selected ID is stable.
 
 `evaluate_v4.py` recreates the deterministic v4 calibration and adaptive-compute report without a
 model service. It fits calibration and independent coverage models on fixed train/validation/test
@@ -63,3 +68,8 @@ and ablation tables. The optional CSV is suitable for plotting the risk-latency-
 
 This is controlled acceptance evidence. Its latency, token, and recovery values are fixture
 accounting and must not be reported as live-model performance.
+
+`evaluate_v4_live_jev.py` constructs adequate, acceptable-deleted, duplicate-added, and
+distractor-added variants for each v1 task, keeps base tasks disjoint across train/validation/test,
+and fits a live-score Platt calibrator. It submits those variants to hosted Jev and therefore must
+only be run with authorization to send the fixture text to that external service.

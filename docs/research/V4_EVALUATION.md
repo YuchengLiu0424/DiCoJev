@@ -23,6 +23,11 @@ real model stack.
 NOTA identified 3 of 13 inadequate held-out sets (23.1%). That weak fixture result is retained
 rather than hidden: NOTA alone is not an adequate coverage detector in this benchmark.
 
+Calibration is operational rather than report-only: versioned artifacts can reconstruct their
+Platt or logistic estimator, `CalibratedDecisionBackend` preserves raw evidence while populating
+separate calibrated fields, and the cost-aware controller can route on calibrated coverage and
+selection while including typed-feedback token cost in expansion utility.
+
 ## Feedback and adaptive compute
 
 The five-case feedback fixture produced:
@@ -62,6 +67,22 @@ the expected tradeoff, not evidence that coverage awareness is ineffective.
 - Calibration, candidate-quality-only, and feedback-removed ablations are persisted separately.
 - Reliability bins are persisted for raw, calibrated, and independent-verifier scores.
 - `benchmarks/v4_risk_latency_token.csv` and its SVG rendering are recreated from the run artifact.
+
+## Live and native companion evidence
+
+- `benchmarks/v4_jev_live.json` records five live hosted-Jev 1.13.0 cases: acceptable selection was
+  100%, preferred selection was 80%, and mean raw coverage was 0.966.
+- `benchmarks/v4_jev_deletion_live.json` records a matched deletion pair: coverage fell from 0.96
+  to 0.38 when all acceptable actions were removed, and selection changed from `A` to NOTA.
+- `benchmarks/v4_native_repeatability.json` records five fixed-configuration local LLaDA reads with
+  zero logit span and unchanged selection.
+- `benchmarks/v4_runtime_audit.json` records that both local checkpoints are present, hosted Jev and
+  Mercury credentials are configured, and the abandoned local services were offline during audit.
+
+The larger 20-condition hosted-Jev calibration runner is implemented as
+`scripts/evaluate_v4_live_jev.py`. Its inputs are human-auditable variants of the five repository
+fixtures. The resulting artifact is only created when external-dataset submission is explicitly
+authorized; controlled v4 tests never require it.
 
 ## Decision
 

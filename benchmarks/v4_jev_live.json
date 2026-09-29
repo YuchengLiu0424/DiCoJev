@@ -1,0 +1,107 @@
+{
+  "schema_version": "1",
+  "dataset": "benchmarks/v1_text_decisions.json",
+  "dataset_sha256": "b660f403b86bfde7b81fc835141711203d9eebad56187b72b44fa251c61f0e50",
+  "validation": {
+    "cases": 5,
+    "all_candidate_sets_covered": true,
+    "mean_candidates": 3.0,
+    "sources": {
+      "human_fixture": 4,
+      "local_diffusiongemma_compact_smoke": 1
+    }
+  },
+  "backends": {
+    "jev": {
+      "summary": {
+        "cases": 5,
+        "mean_coverage": 0.966,
+        "coverage_brier": 0.001180000000000002,
+        "acceptable_selection_rate_given_coverage": 1.0,
+        "preferred_selection_rate_given_coverage": 0.8,
+        "latency_ms": {
+          "mean": 2191.118019958958,
+          "p50": 2107.4550999328494,
+          "p95": 3810.794400051236
+        }
+      },
+      "cases": [
+        {
+          "case_id": "email_unverified_recipients",
+          "oracle_covered": true,
+          "coverage_raw": 0.97,
+          "coverage_brier": 0.0009000000000000016,
+          "selected_id": "A",
+          "selected_action": "Verify email recipients",
+          "selected_acceptable": true,
+          "selected_preferred": true,
+          "latency_ms": 2282.0996998343617,
+          "usage": {
+            "input_tokens": 503,
+            "output_tokens": 61
+          }
+        },
+        {
+          "case_id": "overwrite_only_copy",
+          "oracle_covered": true,
+          "coverage_raw": 0.97,
+          "coverage_brier": 0.0009000000000000016,
+          "selected_id": "A",
+          "selected_action": "Save the export under a new filename",
+          "selected_acceptable": true,
+          "selected_preferred": true,
+          "latency_ms": 2107.4550999328494,
+          "usage": {
+            "input_tokens": 533,
+            "output_tokens": 61
+          }
+        },
+        {
+          "case_id": "meeting_time_conflict",
+          "oracle_covered": true,
+          "coverage_raw": 0.96,
+          "coverage_brier": 0.001600000000000003,
+          "selected_id": "B",
+          "selected_action": "Offer the first open slot",
+          "selected_acceptable": true,
+          "selected_preferred": false,
+          "latency_ms": 1278.116000117734,
+          "usage": {
+            "input_tokens": 512,
+            "output_tokens": 61
+          }
+        },
+        {
+          "case_id": "unknown_attachment",
+          "oracle_covered": true,
+          "coverage_raw": 0.96,
+          "coverage_brier": 0.001600000000000003,
+          "selected_id": "B",
+          "selected_action": "Quarantine it and inspect metadata",
+          "selected_acceptable": true,
+          "selected_preferred": true,
+          "latency_ms": 1477.1248998586088,
+          "usage": {
+            "input_tokens": 514,
+            "output_tokens": 61
+          }
+        },
+        {
+          "case_id": "insufficient_purchase_information",
+          "oracle_covered": true,
+          "coverage_raw": 0.97,
+          "coverage_brier": 0.0009000000000000016,
+          "selected_id": "B",
+          "selected_action": "Ask for budget and workload requirements",
+          "selected_acceptable": true,
+          "selected_preferred": true,
+          "latency_ms": 3810.794400051236,
+          "usage": {
+            "input_tokens": 518,
+            "output_tokens": 61
+          }
+        }
+      ]
+    }
+  }
+}

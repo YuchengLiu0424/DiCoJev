@@ -53,6 +53,8 @@ def test_platt_calibration_fits_and_versions_artifact():
     assert artifact.kind == "platt"
     assert artifact.validation_metrics.count == 2
     assert len(artifact.dataset_sha256) == 64
+    restored = PlattCalibrator.from_artifact(artifact)
+    assert restored.predict(0.9) == pytest.approx(calibrator.predict(0.9))
 
 
 def test_logistic_coverage_estimator_learns_held_out_ordering():
@@ -64,6 +66,8 @@ def test_logistic_coverage_estimator_learns_held_out_ordering():
     artifact = estimator.artifact(data, data[4:], model_version="coverage-v1")
     assert artifact.feature_names == ("candidate_count", "max_similarity")
     assert artifact.validation_metrics.brier < 0.25
+    restored = LogisticCoverageEstimator.from_artifact(artifact)
+    assert restored.predict(data[5].features) == pytest.approx(estimator.predict(data[5].features))
 
 
 def test_calibration_metrics_keep_accuracy_separate_from_confidence():

@@ -10,6 +10,11 @@
   fast/slow router, and risk-latency-token aggregation.
 - Added the reproducible controlled v4 evaluator with typed/binary/long-form feedback baselines,
   fixed/adaptive compute comparison, separate ablations, JSON evidence, and plot-ready CSV output.
+- Made calibration artifacts reloadable, added a raw-preserving calibrated backend wrapper, and
+  routed cost-aware expansion using calibrated evidence plus feedback-token cost.
+- Closed the v3 tolerance gate with five identical fixed-configuration local LLaDA reads and added
+  hosted Jev 1.13.0 to the exact matched Native/CrossEncoder comparison after the local Djev GPU
+  deployment was explicitly abandoned.
 
 - Began v3 with a project-owned `NativeDLMDecisionBackend`, deterministic coverage/selection
   canvases, strict label/logit validation, normalized probabilities, and injectable same-process

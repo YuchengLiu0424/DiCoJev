@@ -1,14 +1,18 @@
 import pytest
 
 from dicojev.schemas import (
+    BackendCapabilities,
     Candidate,
     CoverageScore,
     DecisionBackendResult,
+    DecisionSpec,
     FeedbackCode,
     MetaAction,
+    MultimodalState,
     SelectionScore,
 )
 from dicojev.v4 import (
+    CalibratedDecisionBackend,
     CostAwareRiskController,
     FastSlowRouter,
     FeedbackRecoveryPolicy,
@@ -103,6 +107,51 @@ async def test_cost_aware_controller_expands_only_when_expected_recovery_justifi
     assert rejected.action is MetaAction.ABSTAIN
     assert rejected.reason_code == "adaptive_cost_exceeds_expected_recovery"
     assert rejected.feedback.generation_relevant is False
+
+
+@pytest.mark.asyncio
+async def test_cost_aware_controller_routes_on_calibrated_evidence_and_token_cost():
+    policy = recovery_policy()
+    controller = CostAwareRiskController(policy, expansion_cost=0.1, token_cost_weight=0.1)
+    result = backend_result(0.95, coverage_calibrated=0.2)
+    decision = await controller.decide(
+        result,
+        round_index=0,
+        expansions_remaining=1,
+        candidate_budget_remaining=2,
+    )
+    assert decision.action is MetaAction.ABSTAIN
+    assert decision.reason_code == "adaptive_cost_exceeds_expected_recovery"
+
+
+@pytest.mark.asyncio
+async def test_calibrated_backend_preserves_raw_and_populates_calibrated_fields():
+    class Backend:
+        capabilities = BackendCapabilities()
+
+        async def decide(self, _state, _spec, _candidates):
+            return backend_result(0.8, 0.7)
+
+    backend = CalibratedDecisionBackend(
+        Backend(),
+        coverage_calibrator=lambda value: value / 2,
+        selection_calibrator=lambda value: value + 0.1,
+    )
+    result = await backend.decide(
+        MultimodalState(text="x"),
+        DecisionSpec(
+            task="x",
+            candidates=(),
+            selection_instruction="select",
+            coverage_instruction="cover",
+        ),
+        [Candidate(id="A", action="act")],
+    )
+    assert result.coverage.raw == 0.8
+    assert result.coverage.calibrated == 0.4
+    assert result.selection.confidence_raw == 0.7
+    assert result.selection.confidence_calibrated == pytest.approx(0.8)
+    assert backend.capabilities.supports_calibrated_output is True
 
 
 def test_fast_slow_router_honors_zero_calibrated_values():

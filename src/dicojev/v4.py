@@ -9,12 +9,16 @@ from dataclasses import dataclass
 from typing import Literal
 
 from .controller import ThresholdRiskController
+from .protocols import DecisionBackend
 from .schemas import (
+    BackendCapabilities,
     Candidate,
     ControllerDecision,
     DecisionBackendResult,
+    DecisionSpec,
     FeedbackCode,
     MetaAction,
+    MultimodalState,
 )
 
 
@@ -114,6 +118,48 @@ class FeedbackRecoveryPolicy:
         return self.token_costs.get(code, 0.0)
 
 
+class CalibratedDecisionBackend:
+    """Populate calibrated fields while preserving a backend's raw evidence."""
+
+    def __init__(
+        self,
+        backend: DecisionBackend,
+        *,
+        coverage_calibrator,
+        selection_calibrator=None,
+    ) -> None:
+        self.backend = backend
+        self.coverage_calibrator = coverage_calibrator
+        self.selection_calibrator = selection_calibrator
+        capabilities = getattr(backend, "capabilities", BackendCapabilities())
+        self.capabilities = capabilities.model_copy(update={"supports_calibrated_output": True})
+
+    async def decide(
+        self,
+        state: MultimodalState,
+        spec: DecisionSpec,
+        candidates: list[Candidate],
+    ) -> DecisionBackendResult:
+        result = await self.backend.decide(state, spec, candidates)
+        coverage = result.coverage
+        selection = result.selection
+        if coverage is not None:
+            coverage = coverage.model_copy(
+                update={"calibrated": self.coverage_calibrator(coverage.raw)}
+            )
+        if (
+            selection is not None
+            and selection.confidence_raw is not None
+            and self.selection_calibrator is not None
+        ):
+            selection = selection.model_copy(
+                update={
+                    "confidence_calibrated": self.selection_calibrator(selection.confidence_raw)
+                }
+            )
+        return result.model_copy(update={"coverage": coverage, "selection": selection})
+
+
 class CostAwareRiskController:
     """Gate expansion when learned recovery value does not justify its configured cost."""
 
@@ -124,10 +170,14 @@ class CostAwareRiskController:
         min_coverage: float = 0.75,
         min_selection: float = 0.70,
         expansion_cost: float = 0.2,
+        token_cost_weight: float = 0.0,
+        use_calibrated: bool = True,
     ) -> None:
         self.base = ThresholdRiskController(min_coverage, min_selection)
         self.policy = policy
         self.expansion_cost = expansion_cost
+        self.token_cost_weight = token_cost_weight
+        self.use_calibrated = use_calibrated
 
     async def decide(
         self,
@@ -139,8 +189,21 @@ class CostAwareRiskController:
         latency_budget_remaining: float | None = None,
         compute_budget_remaining: float | None = None,
     ) -> ControllerDecision:
+        routing_result = result
+        if self.use_calibrated:
+            coverage = result.coverage
+            selection = result.selection
+            if coverage is not None and coverage.calibrated is not None:
+                coverage = coverage.model_copy(update={"raw": coverage.calibrated})
+            if selection is not None and selection.confidence_calibrated is not None:
+                selection = selection.model_copy(
+                    update={"confidence_raw": selection.confidence_calibrated}
+                )
+            routing_result = result.model_copy(
+                update={"coverage": coverage, "selection": selection}
+            )
         decision = await self.base.decide(
-            result,
+            routing_result,
             round_index=round_index,
             expansions_remaining=expansions_remaining,
             candidate_budget_remaining=candidate_budget_remaining,
@@ -150,7 +213,9 @@ class CostAwareRiskController:
         if decision.action is not MetaAction.EXPAND:
             return decision
         probability = self.policy.recovery_probability(decision.feedback.primary.code)
-        if probability > self.expansion_cost:
+        token_cost = self.policy.expected_token_cost(decision.feedback.primary.code)
+        total_cost = self.expansion_cost + self.token_cost_weight * token_cost
+        if probability > total_cost:
             return decision
         feedback = decision.feedback.model_copy(update={"generation_relevant": False})
         return decision.model_copy(
