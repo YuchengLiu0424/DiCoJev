@@ -43,5 +43,11 @@ measurements, not calibrated probabilities or an interactive performance claim. 
 now keeps a bounded content-addressed LRU cache of projected vision features. On the same image and
 prompts, total latency fell from 997.9 to 890.1 seconds (10.8%) and the logits were identical. The
 coverage read populated the cache and the selection read reported a cache hit. The hit still took
-412.3 seconds because the long multimodal language-model forward is repeated; batching the two
-masked reads into one forward is therefore the next performance target.
+412.3 seconds because the long multimodal language-model forward is repeated.
+
+The server and runtime also support batching both masks into one multimodal forward. On this CPU
+host the matched batch took 985.9 seconds: only 1.2% faster than the uncached baseline and 10.8%
+slower than cached sequential reads. Coverage logits were identical; selection remained `A`, with
+one logit differing by 0.015625 under batched floating-point execution. Consequently batching is
+an explicit `batch_reads` / `--batch-reads` opt-in for accelerator experiments, while cached
+sequential reads remain the CPU default.

@@ -22,9 +22,14 @@ async def main() -> None:
     parser.add_argument("--timeout", type=float, default=600)
     parser.add_argument("--output", type=Path)
     parser.add_argument("--image", action="store_true", help="include a one-pixel red PNG")
+    parser.add_argument("--batch-reads", action="store_true")
     args = parser.parse_args()
     backend = NativeDLMDecisionBackend(
-        LladaHTTPNativeReadRuntime(base_url=args.base_url, timeout_seconds=args.timeout),
+        LladaHTTPNativeReadRuntime(
+            base_url=args.base_url,
+            timeout_seconds=args.timeout,
+            batch_reads=args.batch_reads,
+        ),
         runtime_name="llada-v-local",
     )
     state = (

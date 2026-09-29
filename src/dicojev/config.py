@@ -116,6 +116,7 @@ def create_backend(config: dict[str, Any], **dependencies: Any):
                 base_url=backend.get("base_url", "http://127.0.0.1:8002"),
                 timeout_seconds=backend.get("timeout_seconds", 600),
                 transport=dependencies.get("transport"),
+                batch_reads=backend.get("batch_reads", False),
             )
         if runtime is None:
             raise ConfigurationError(

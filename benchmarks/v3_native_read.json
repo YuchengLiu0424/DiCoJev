@@ -40,5 +40,19 @@
       "vision_cache_hit": true
     },
     "notes": "Projected vision features were reused and logits were identical. The remaining cost is dominated by two long multimodal language-model forwards."
+  },
+  "native_image_batched": {
+    "status": "pass_with_cpu_regression",
+    "input": "same one-pixel red PNG and prompts as native_image",
+    "latency_ms": 985949.28,
+    "batch_size": 2,
+    "change_vs_uncached_percent": -1.2,
+    "change_vs_cached_sequential_percent": 10.8,
+    "coverage": 0.6842640244786128,
+    "selected_id": "A",
+    "selection_confidence": 0.9929335990367509,
+    "coverage_logits": [8.8671875, 9.640625],
+    "selection_logits": [13.1171875, 8.171875],
+    "notes": "One batched multimodal forward preserved the decision but was slower than cached sequential reads on CPU. It remains opt-in for accelerator benchmarking."
   }
 }

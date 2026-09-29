@@ -39,3 +39,8 @@ The server keeps up to two projected vision-feature entries in a content-address
 default. Set `LLADA_VISION_CACHE_ENTRIES=0` to disable it or another nonnegative integer to change
 the bound. Structured-read diagnostics report `vision_cache_hit`; prompt-specific language-model
 forwards are never cached.
+
+The server also exposes `/v1/structured-read-batch`. Enable it through `batch_reads: true` in the
+native backend configuration or `native_read_smoke.py --batch-reads`. It is deliberately disabled
+by default because the matched CPU trial was slower than cached sequential reads; it should be
+reevaluated on an accelerator.

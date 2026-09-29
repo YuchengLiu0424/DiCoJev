@@ -215,48 +215,84 @@ class LladaRuntime:
     def structured_read(
         self, prompt: str, labels: list[str], image_urls: list[str]
     ) -> tuple[list[float], list[int], int, bool | None]:
-        label_token_ids: list[int] = []
-        for label in labels:
-            token_ids = self.tokenizer(label, add_special_tokens=False).input_ids
-            if len(token_ids) != 1:
-                raise RequestError(f"label must encode to exactly one token: {label!r}")
-            label_token_ids.append(token_ids[0])
-
-        images = [decode_image_url(url) for url in image_urls]
-        content = ("<image>\n" * len(images)) + prompt
-        rendered = self.tokenizer.apply_chat_template(
-            [{"role": "user", "content": content}],
-            tokenize=False,
-            add_generation_prompt=True,
+        results, cache_hit = self.structured_read_batch(
+            [{"prompt": prompt, "labels": labels}], image_urls
         )
+        result = results[0]
+        return result["logits"], result["label_token_ids"], result["prompt_tokens"], cache_hit
+
+    def structured_read_batch(
+        self, reads: list[dict[str, Any]], image_urls: list[str]
+    ) -> tuple[list[dict[str, Any]], bool | None]:
+        label_token_ids: list[list[int]] = []
+        for read in reads:
+            read_token_ids = []
+            for label in read["labels"]:
+                token_ids = self.tokenizer(label, add_special_tokens=False).input_ids
+                if len(token_ids) != 1:
+                    raise RequestError(f"label must encode to exactly one token: {label!r}")
+                read_token_ids.append(token_ids[0])
+            label_token_ids.append(read_token_ids)
+
+        batch_size = len(reads)
+        images = [decode_image_url(url) for url in image_urls]
+        mask_token_id = self.tokenizer.convert_tokens_to_ids("<|mdm_mask|>")
+        sequences = []
+        for read in reads:
+            content = ("<image>\n" * len(images)) + read["prompt"]
+            rendered = self.tokenizer.apply_chat_template(
+                [{"role": "user", "content": content}],
+                tokenize=False,
+                add_generation_prompt=True,
+            )
+            sequence = (
+                self.tokenizer_image_token(
+                    rendered, self.tokenizer, self.image_token_index, return_tensors="pt"
+                )
+                if images
+                else self.tokenizer(rendered, return_tensors="pt").input_ids[0]
+            )
+            sequences.append(
+                self.torch.cat([sequence, self.torch.tensor([mask_token_id], dtype=sequence.dtype)])
+            )
+
+        prompt_tokens = [int(sequence.shape[-1]) for sequence in sequences]
+        max_length = max(prompt_tokens)
+        input_ids = self.torch.full(
+            (batch_size, max_length),
+            self.tokenizer.pad_token_id,
+            dtype=sequences[0].dtype,
+        )
+        attention_mask = self.torch.zeros((batch_size, max_length), dtype=self.torch.long)
+        for index, sequence in enumerate(sequences):
+            length = sequence.shape[-1]
+            input_ids[index, :length] = sequence
+            attention_mask[index, :length] = 1
+
         if images:
-            input_ids = self.tokenizer_image_token(
-                rendered, self.tokenizer, self.image_token_index, return_tensors="pt"
-            ).unsqueeze(0)
             vision_tower = self.model.get_vision_tower()
-            image_tensors = self.process_images(
+            base_image_tensors = self.process_images(
                 images, vision_tower.image_processor, self.model.config
             )
-            image_tensors = [
-                tensor.to(dtype=self.torch.float16, device="cpu") for tensor in image_tensors
+            base_image_tensors = [
+                tensor.to(dtype=self.torch.float16, device="cpu") for tensor in base_image_tensors
             ]
-            image_sizes = [image.size for image in images]
+            image_tensors = base_image_tensors * batch_size
+            image_sizes = [image.size for image in images] * batch_size
         else:
-            input_ids = self.tokenizer(rendered, return_tensors="pt").input_ids
+            base_image_tensors = None
             image_tensors = None
             image_sizes = None
 
-        mask_token_id = self.tokenizer.convert_tokens_to_ids("<|mdm_mask|>")
-        mask = self.torch.tensor([[mask_token_id]], dtype=input_ids.dtype)
-        input_ids = self.torch.cat([input_ids, mask], dim=-1)
-        attention_mask = self.torch.ones_like(input_ids)
         vision_cache_hit: bool | None = None
         with self.lock, self.torch.no_grad():
             original_encode_images = None
             if images:
-                image_features, vision_cache_hit = self._image_features(images, image_tensors)
+                image_features, vision_cache_hit = self._image_features(images, base_image_tensors)
+                repeats = (batch_size,) + (1,) * (image_features.ndim - 1)
+                batched_image_features = image_features.repeat(repeats)
                 original_encode_images = self.model.encode_images
-                self.model.encode_images = lambda _images: image_features
+                self.model.encode_images = lambda _images: batched_image_features
             try:
                 (
                     prepared_input_ids,
@@ -272,6 +308,7 @@ class LladaRuntime:
                     None,
                     None,
                     images=image_tensors,
+                    modalities=["image"] * batch_size,
                     image_sizes=image_sizes,
                 )
             finally:
@@ -285,8 +322,16 @@ class LladaRuntime:
                 return_dict=True,
             )
             logits = self.model.lm_head(output.last_hidden_state)
-        logits = logits[0, -1, label_token_ids].float().tolist()
-        return logits, label_token_ids, int(input_ids.shape[-1]), vision_cache_hit
+        mask_positions = prepared_attention_mask.sum(dim=-1) - 1
+        results = [
+            {
+                "logits": logits[index, mask_positions[index], token_ids].float().tolist(),
+                "label_token_ids": token_ids,
+                "prompt_tokens": prompt_tokens[index],
+            }
+            for index, token_ids in enumerate(label_token_ids)
+        ]
+        return results, vision_cache_hit
 
 
 def make_handler(runtime: LladaRuntime, model_name: str):
@@ -308,7 +353,11 @@ def make_handler(runtime: LladaRuntime, model_name: str):
                 self.send_json(404, {"error": {"message": "not found"}})
 
         def do_POST(self) -> None:
-            if self.path not in {"/v1/chat/completions", "/v1/structured-read"}:
+            if self.path not in {
+                "/v1/chat/completions",
+                "/v1/structured-read",
+                "/v1/structured-read-batch",
+            }:
                 self.send_json(404, {"error": {"message": "not found"}})
                 return
             try:
@@ -320,6 +369,9 @@ def make_handler(runtime: LladaRuntime, model_name: str):
                     raise RequestError("request body must be an object")
                 if self.path == "/v1/structured-read":
                     self.handle_structured_read(request)
+                    return
+                if self.path == "/v1/structured-read-batch":
+                    self.handle_structured_read_batch(request)
                     return
                 if not isinstance(request.get("messages"), list):
                     raise RequestError("messages must be an array")
@@ -420,6 +472,44 @@ def make_handler(runtime: LladaRuntime, model_name: str):
                     "diagnostics": {
                         "elapsed_ms": (time.perf_counter() - started) * 1000,
                         "vision_cache_hit": vision_cache_hit,
+                    },
+                },
+            )
+
+        def handle_structured_read_batch(self, request: dict[str, Any]) -> None:
+            reads = request.get("reads")
+            images = request.get("images", [])
+            if not isinstance(reads, list) or not 1 <= len(reads) <= 8:
+                raise RequestError("reads must contain between 1 and 8 objects")
+            normalized_reads = []
+            for read in reads:
+                if not isinstance(read, dict):
+                    raise RequestError("each read must be an object")
+                prompt = read.get("prompt")
+                labels = read.get("labels")
+                if not isinstance(prompt, str) or not prompt.strip():
+                    raise RequestError("each read prompt must be a nonempty string")
+                if (
+                    not isinstance(labels, list)
+                    or not 2 <= len(labels) <= 9
+                    or not all(isinstance(label, str) and label for label in labels)
+                    or len(labels) != len(set(labels))
+                ):
+                    raise RequestError("each read must have between 2 and 9 unique labels")
+                normalized_reads.append({"prompt": prompt, "labels": labels})
+            if not isinstance(images, list) or not all(isinstance(url, str) for url in images):
+                raise RequestError("images must be an array of URLs")
+            started = time.perf_counter()
+            results, vision_cache_hit = runtime.structured_read_batch(normalized_reads, images)
+            self.send_json(
+                200,
+                {
+                    "model": model_name,
+                    "results": results,
+                    "diagnostics": {
+                        "elapsed_ms": (time.perf_counter() - started) * 1000,
+                        "vision_cache_hit": vision_cache_hit,
+                        "batch_size": len(reads),
                     },
                 },
             )

@@ -68,6 +68,17 @@ def test_llada_http_contract_reports_real_usage_and_validates_requests():
             assert images == []
             return [2.0, -1.0], [32, 45], 7, True
 
+        def structured_read_batch(self, reads, images):
+            assert [read["labels"] for read in reads] == [["0", "1"], ["A", "N"]]
+            assert images == []
+            return (
+                [
+                    {"logits": [-1.0, 1.0], "label_token_ids": [15, 16], "prompt_tokens": 8},
+                    {"logits": [2.0, -2.0], "label_token_ids": [32, 45], "prompt_tokens": 9},
+                ],
+                False,
+            )
+
     server = ThreadingHTTPServer(("127.0.0.1", 0), module.make_handler(Runtime(), "fixture"))
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
@@ -117,6 +128,26 @@ def test_llada_http_contract_reports_real_usage_and_validates_requests():
         assert native_payload["label_token_ids"] == [32, 45]
         assert native_payload["usage"] == {"prompt_tokens": 7}
         assert native_payload["diagnostics"]["vision_cache_hit"] is True
+
+        batch = urllib.request.Request(
+            base_url + "/v1/structured-read-batch",
+            data=json.dumps(
+                {
+                    "reads": [
+                        {"prompt": "covered?", "labels": ["0", "1"]},
+                        {"prompt": "choose", "labels": ["A", "N"]},
+                    ]
+                }
+            ).encode(),
+            headers={"Content-Type": "application/json"},
+        )
+        with urllib.request.urlopen(batch) as response:
+            batch_payload = json.load(response)
+        assert [result["logits"] for result in batch_payload["results"]] == [
+            [-1.0, 1.0],
+            [2.0, -2.0],
+        ]
+        assert batch_payload["diagnostics"]["batch_size"] == 2
     finally:
         server.shutdown()
         server.server_close()

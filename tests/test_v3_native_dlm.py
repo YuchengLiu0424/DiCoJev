@@ -115,11 +115,13 @@ def test_native_backend_configuration_requires_runtime():
                 "kind": "native_dlm",
                 "runtime_kind": "llada_http",
                 "base_url": "http://llada",
+                "batch_reads": True,
             }
         }
     )
     assert isinstance(configured.runtime, LladaHTTPNativeReadRuntime)
     assert configured.runtime.base_url == "http://llada"
+    assert configured.runtime.supports_batch_reads is True
 
 
 @pytest.mark.asyncio
@@ -142,3 +144,30 @@ async def test_llada_http_runtime_transports_native_read_canvas():
     assert captured["prompt"] == read.prompt
     assert captured["images"] == []
     assert runtime.diagnostics["coverage"] == {"vision_cache_hit": False}
+
+
+@pytest.mark.asyncio
+async def test_native_backend_uses_runtime_batch_read_when_available():
+    class Runtime:
+        supports_batch_reads = True
+
+        def __init__(self):
+            self.calls = 0
+            self.diagnostics = {}
+
+        def read(self, _request):
+            raise AssertionError("single read must not be used")
+
+        async def read_many(self, requests):
+            self.calls += 1
+            self.diagnostics = {"batch": {"batch_size": len(requests)}}
+            return [[-1.0, 1.0], [2.0, -2.0]]
+
+    runtime = Runtime()
+    result = await NativeDLMDecisionBackend(runtime).decide(
+        MultimodalState(text="x"), fixture_spec(), fixture_candidates()
+    )
+    assert runtime.calls == 1
+    assert result.coverage.raw > 0.8
+    assert result.selection.selected_id == "A"
+    assert result.diagnostics["runtime_reads"]["batch"]["batch_size"] == 2
