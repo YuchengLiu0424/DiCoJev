@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Implemented v4 CPU-only calibration records, stable dataset hashing, Platt scaling, learned
+  logistic coverage estimation, and versioned calibration artifacts with held-out metrics.
+- Added controlled candidate-set corruptions and learned candidate-quality features, NOTA-aware
+  analysis, conformal routing comparison, and same-backbone/independent-verifier correlation.
+- Added a smoothed typed-feedback recovery policy, cost-aware expansion controller, calibrated
+  fast/slow router, and risk-latency-token aggregation.
+- Added the reproducible controlled v4 evaluator with typed/binary/long-form feedback baselines,
+  fixed/adaptive compute comparison, separate ablations, JSON evidence, and plot-ready CSV output.
+
 - Began v3 with a project-owned `NativeDLMDecisionBackend`, deterministic coverage/selection
   canvases, strict label/logit validation, normalized probabilities, and injectable same-process
   runtime support.

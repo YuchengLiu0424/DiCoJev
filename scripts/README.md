@@ -48,3 +48,18 @@ reevaluated on an accelerator.
 `evaluate_v3.py` writes the matched Native/CrossEncoder/Djev acceptance comparison. Djev is run only
 when `DICOJEV_DJEV_URL` is configured; otherwise the artifact retains an explicit hardware-waiver
 status.
+
+`evaluate_v4.py` recreates the deterministic v4 calibration and adaptive-compute report without a
+model service. It fits calibration and independent coverage models on fixed train/validation/test
+splits, then reports calibration, dependence, NOTA, feedback-policy, adaptive-compute, conformal,
+and ablation tables. The optional CSV is suitable for plotting the risk-latency-token curve:
+
+```powershell
+.venv\Scripts\python.exe scripts\evaluate_v4.py `
+  --output benchmarks/v4_evaluation.json `
+  --curve-csv benchmarks/v4_risk_latency_token.csv `
+  --plot benchmarks/v4_risk_latency_token.svg
+```
+
+This is controlled acceptance evidence. Its latency, token, and recovery values are fixture
+accounting and must not be reported as live-model performance.

@@ -1,0 +1,274 @@
+{
+  "ablations": {
+    "candidate_quality_only": {
+      "brier": 0.34678731312135325,
+      "count": 20,
+      "expected_calibration_error": 0.3440031040079044
+    },
+    "coverage_calibration": {
+      "brier_improvement": 0.33570297805842975,
+      "platt_brier": 0.11815969416379246,
+      "raw_brier": 0.4538626722222222
+    },
+    "feedback_removed": {
+      "cases": 5,
+      "mean_feedback_tokens": 4.0,
+      "recoveries_per_100_tokens": 10.0,
+      "recovery_rate": 0.4
+    }
+  },
+  "adaptive_compute": {
+    "risk_latency_token_curve": [
+      {
+        "coverage_threshold": 0.0,
+        "mean_latency_ms": 28.0,
+        "mean_tokens": 18.0,
+        "risk": 0.65
+      },
+      {
+        "coverage_threshold": 0.82,
+        "mean_latency_ms": 42.7,
+        "mean_tokens": 22.2,
+        "risk": 0.5
+      },
+      {
+        "coverage_threshold": 1.0,
+        "mean_latency_ms": 70.0,
+        "mean_tokens": 30.0,
+        "risk": 0.35
+      }
+    ],
+    "table": {
+      "adaptive": {
+        "expansion_rate": 0.35,
+        "mean_latency_ms": 42.7,
+        "mean_tokens": 22.2,
+        "risk": 0.5
+      },
+      "fixed_one_round": {
+        "expansion_rate": 0.0,
+        "mean_latency_ms": 28.0,
+        "mean_tokens": 18.0,
+        "risk": 0.65
+      },
+      "fixed_two_round": {
+        "expansion_rate": 1.0,
+        "mean_latency_ms": 70.0,
+        "mean_tokens": 30.0,
+        "risk": 0.35
+      }
+    }
+  },
+  "calibration": {
+    "coverage_estimator_artifact": {
+      "created_at": "2026-09-29T14:06:04.984308Z",
+      "dataset_sha256": "36363276cb5282093aa454bc14ddd15a68afdc147ecdd989dee392f8c9f6bcbf",
+      "feature_names": [
+        "candidate_count",
+        "max_similarity",
+        "unique_ratio",
+        "constraint_compliance"
+      ],
+      "kind": "logistic_coverage",
+      "model_version": "controlled-independent-v1",
+      "parameters": {
+        "candidate_count": 0.9193480791137916,
+        "constraint_compliance": -1.219949117738574,
+        "intercept": -2.613834029696818,
+        "max_similarity": 2.067865818585579,
+        "unique_ratio": -1.5809622528366978
+      },
+      "schema_version": "1",
+      "validation_metrics": {
+        "brier": 0.18449823259762338,
+        "count": 20,
+        "expected_calibration_error": 0.19907048651806547
+      }
+    },
+    "learned_independent_verifier": {
+      "brier": 0.14187669515701454,
+      "count": 20,
+      "expected_calibration_error": 0.16150437169558282
+    },
+    "platt": {
+      "brier": 0.11815969416379246,
+      "count": 20,
+      "expected_calibration_error": 0.23950257316967954
+    },
+    "platt_artifact": {
+      "created_at": "2026-09-29T14:06:04.983308Z",
+      "dataset_sha256": "36363276cb5282093aa454bc14ddd15a68afdc147ecdd989dee392f8c9f6bcbf",
+      "feature_names": [],
+      "kind": "platt",
+      "model_version": "controlled-same-backbone-v1",
+      "parameters": {
+        "intercept": -3.3502022263743148,
+        "slope": 0.8535137022260637
+      },
+      "schema_version": "1",
+      "validation_metrics": {
+        "brier": 0.20112054521089698,
+        "count": 20,
+        "expected_calibration_error": 0.21702281568461088
+      }
+    },
+    "raw": {
+      "brier": 0.4538626722222222,
+      "count": 20,
+      "expected_calibration_error": 0.5307166666666666
+    },
+    "reliability_curves": {
+      "learned_independent_verifier": [
+        {
+          "bin_lower": 0.0,
+          "bin_upper": 0.2,
+          "count": 7,
+          "empirical_accuracy": 0.0,
+          "mean_confidence": 0.058515283869186877
+        },
+        {
+          "bin_lower": 0.2,
+          "bin_upper": 0.4,
+          "count": 7,
+          "empirical_accuracy": 0.42857142857142855,
+          "mean_confidence": 0.24449299700457275
+        },
+        {
+          "bin_lower": 0.4,
+          "bin_upper": 0.6,
+          "count": 3,
+          "empirical_accuracy": 0.3333333333333333,
+          "mean_confidence": 0.49579660578051027
+        },
+        {
+          "bin_lower": 0.6,
+          "bin_upper": 0.8,
+          "count": 3,
+          "empirical_accuracy": 1.0,
+          "mean_confidence": 0.6518194638273911
+        }
+      ],
+      "platt": [
+        {
+          "bin_lower": 0.0,
+          "bin_upper": 0.2,
+          "count": 8,
+          "empirical_accuracy": 0.0,
+          "mean_confidence": 0.09934153767968042
+        },
+        {
+          "bin_lower": 0.2,
+          "bin_upper": 0.4,
+          "count": 4,
+          "empirical_accuracy": 0.0,
+          "mean_confidence": 0.23459061528887337
+        },
+        {
+          "bin_lower": 0.4,
+          "bin_upper": 0.6,
+          "count": 8,
+          "empirical_accuracy": 0.875,
+          "mean_confidence": 0.4928804123999183
+        }
+      ],
+      "raw": [
+        {
+          "bin_lower": 0.4,
+          "bin_upper": 0.6,
+          "count": 1,
+          "empirical_accuracy": 0.0,
+          "mean_confidence": 0.5529999999999999
+        },
+        {
+          "bin_lower": 0.6,
+          "bin_upper": 0.8,
+          "count": 5,
+          "empirical_accuracy": 0.0,
+          "mean_confidence": 0.7531999999999999
+        },
+        {
+          "bin_lower": 0.8,
+          "bin_upper": 1.0,
+          "count": 14,
+          "empirical_accuracy": 0.5,
+          "mean_confidence": 0.9496666666666667
+        }
+      ]
+    }
+  },
+  "conformal_vs_repeated_generation": {
+    "conformal_threshold": 0.20342739262159634,
+    "conformal_triggered_extra_rounds": 9,
+    "repeated_generation_fixed_extra_rounds": 20,
+    "test_accept_rate": 0.55,
+    "validation_miscoverage_target": 0.1
+  },
+  "controlled_corruptions": {
+    "acceptable_deleted": {
+      "adequate": false,
+      "expected_effect": "coverage decreases"
+    },
+    "adequate": {
+      "adequate": true,
+      "expected_effect": "baseline"
+    },
+    "distractor_added": {
+      "adequate": true,
+      "expected_effect": "selection entropy increases"
+    },
+    "duplicate_added": {
+      "adequate": true,
+      "expected_effect": "unique_ratio decreases"
+    }
+  },
+  "dataset": {
+    "adequate_rate": 0.28888888888888886,
+    "records": 90,
+    "sha256": "36363276cb5282093aa454bc14ddd15a68afdc147ecdd989dee392f8c9f6bcbf",
+    "splits": {
+      "test": 20,
+      "train": 50,
+      "validation": 20
+    }
+  },
+  "dependence": {
+    "independent_vs_label_pearson": 0.6668905703774051,
+    "same_backbone_vs_independent_pearson": 0.6603512714049108,
+    "same_backbone_vs_label_pearson": 0.6113598327686461
+  },
+  "evidence_class": "deterministic_controlled_fixture",
+  "feedback": {
+    "learned_missing_action_probability": 0.7142857142857143,
+    "learned_missing_action_token_cost": 12.0,
+    "table": {
+      "binary_retry": {
+        "cases": 5,
+        "mean_feedback_tokens": 4.0,
+        "recoveries_per_100_tokens": 10.0,
+        "recovery_rate": 0.4
+      },
+      "long_form": {
+        "cases": 5,
+        "mean_feedback_tokens": 80.0,
+        "recoveries_per_100_tokens": 1.0,
+        "recovery_rate": 0.8
+      },
+      "typed": {
+        "cases": 5,
+        "mean_feedback_tokens": 12.0,
+        "recoveries_per_100_tokens": 6.666666666666667,
+        "recovery_rate": 0.8
+      }
+    }
+  },
+  "limitations": [
+    "No result in this artifact is a live-model performance estimate.",
+    "Latency and token values are controlled accounting fixtures, not wall-clock measurements."
+  ],
+  "nota": {
+    "inadequate_detection_rate": 0.23076923076923078,
+    "nota_selected": 3,
+    "test_inadequate_cases": 13
+  },
+  "schema_version": "1"
+}
