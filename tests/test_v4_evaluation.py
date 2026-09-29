@@ -15,6 +15,7 @@ def test_v4_evaluation_is_complete_and_deterministic():
     evaluator = load_evaluator()
     first = evaluator.evaluate()
     second = evaluator.evaluate()
+    assert first == second
     assert first["dataset"] == second["dataset"]
     assert first["calibration"]["raw"] == second["calibration"]["raw"]
     assert first["calibration"]["platt"] == second["calibration"]["platt"]

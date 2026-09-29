@@ -28,6 +28,11 @@ Platt or logistic estimator, `CalibratedDecisionBackend` preserves raw evidence 
 separate calibrated fields, and the cost-aware controller can route on calibrated coverage and
 selection while including typed-feedback token cost in expansion utility.
 
+Artifact schema v2 records the explicit training split and count, a hash of training case IDs,
+fitting hyperparameters, and a SHA-256 revision of the evaluator/calibration source. Controlled
+artifact time is fixed to the dataset release date, making the complete JSON report byte-for-byte
+reproducible rather than only numerically reproducible.
+
 ## Feedback and adaptive compute
 
 The five-case feedback fixture produced:

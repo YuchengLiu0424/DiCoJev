@@ -45,11 +45,16 @@ class CalibrationMetrics(StrictModel):
 
 
 class CalibrationArtifact(StrictModel):
-    schema_version: Literal["1"] = "1"
+    schema_version: Literal["2"] = "2"
     kind: Literal["platt", "logistic_coverage"]
     model_version: str = Field(min_length=1)
     dataset_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     created_at: datetime
+    training_split: str
+    training_record_count: int = Field(ge=1)
+    training_case_ids_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    fit_configuration: dict[str, float | int | str]
+    code_revision: str = Field(min_length=1)
     parameters: dict[str, float]
     feature_names: tuple[str, ...] = ()
     validation_metrics: CalibrationMetrics
@@ -119,9 +124,16 @@ def reliability_curve(
 
 
 class PlattCalibrator:
-    def __init__(self, slope: float = 1.0, intercept: float = 0.0) -> None:
+    def __init__(
+        self,
+        slope: float = 1.0,
+        intercept: float = 0.0,
+        *,
+        fit_configuration: Mapping[str, float | int | str] | None = None,
+    ) -> None:
         self.slope = slope
         self.intercept = intercept
+        self.fit_configuration = dict(fit_configuration or {})
 
     def predict(self, probability: float) -> float:
         return _sigmoid(self.slope * _logit(probability) + self.intercept)
@@ -165,7 +177,15 @@ class PlattCalibrator:
             ) / len(labels)
             slope -= learning_rate * slope_gradient
             intercept -= learning_rate * intercept_gradient
-        return cls(slope=slope, intercept=intercept)
+        return cls(
+            slope=slope,
+            intercept=intercept,
+            fit_configuration={
+                "learning_rate": learning_rate,
+                "iterations": iterations,
+                "regularization": regularization,
+            },
+        )
 
     def artifact(
         self,
@@ -173,23 +193,40 @@ class PlattCalibrator:
         validation: Sequence[CalibrationRecord],
         *,
         model_version: str,
+        code_revision: str = "unknown",
+        created_at: datetime | None = None,
     ) -> CalibrationArtifact:
+        training = [record for record in records if record.split == "train"]
         probabilities = [self.predict(record.coverage_raw) for record in validation]
         metrics = calibration_metrics(probabilities, [record.adequate for record in validation])
         return CalibrationArtifact(
             kind="platt",
             model_version=model_version,
             dataset_sha256=dataset_sha256(records),
-            created_at=datetime.now(UTC),
+            created_at=created_at or datetime.now(UTC),
+            training_split="train",
+            training_record_count=len(training),
+            training_case_ids_sha256=hashlib.sha256(
+                json.dumps(sorted(record.case_id for record in training)).encode()
+            ).hexdigest(),
+            fit_configuration=self.fit_configuration,
+            code_revision=code_revision,
             parameters={"slope": self.slope, "intercept": self.intercept},
             validation_metrics=metrics,
         )
 
 
 class LogisticCoverageEstimator:
-    def __init__(self, weights: Mapping[str, float], intercept: float = 0.0) -> None:
+    def __init__(
+        self,
+        weights: Mapping[str, float],
+        intercept: float = 0.0,
+        *,
+        fit_configuration: Mapping[str, float | int | str] | None = None,
+    ) -> None:
         self.weights = dict(weights)
         self.intercept = intercept
+        self.fit_configuration = dict(fit_configuration or {})
 
     def predict(self, features: Mapping[str, float]) -> float:
         value = self.intercept + sum(
@@ -246,7 +283,15 @@ class LogisticCoverageEstimator:
                 )
                 / len(records)
             )
-        return cls(weights, intercept)
+        return cls(
+            weights,
+            intercept,
+            fit_configuration={
+                "learning_rate": learning_rate,
+                "iterations": iterations,
+                "regularization": regularization,
+            },
+        )
 
     def artifact(
         self,
@@ -254,14 +299,24 @@ class LogisticCoverageEstimator:
         validation: Sequence[CalibrationRecord],
         *,
         model_version: str,
+        code_revision: str = "unknown",
+        created_at: datetime | None = None,
     ) -> CalibrationArtifact:
+        training = [record for record in records if record.split == "train"]
         probabilities = [self.predict(record.features) for record in validation]
         metrics = calibration_metrics(probabilities, [record.adequate for record in validation])
         return CalibrationArtifact(
             kind="logistic_coverage",
             model_version=model_version,
             dataset_sha256=dataset_sha256(records),
-            created_at=datetime.now(UTC),
+            created_at=created_at or datetime.now(UTC),
+            training_split="train",
+            training_record_count=len(training),
+            training_case_ids_sha256=hashlib.sha256(
+                json.dumps(sorted(record.case_id for record in training)).encode()
+            ).hexdigest(),
+            fit_configuration=self.fit_configuration,
+            code_revision=code_revision,
             parameters={"intercept": self.intercept, **self.weights},
             feature_names=tuple(self.weights),
             validation_metrics=metrics,

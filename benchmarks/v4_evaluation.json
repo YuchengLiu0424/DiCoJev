@@ -61,7 +61,8 @@
   },
   "calibration": {
     "coverage_estimator_artifact": {
-      "created_at": "2026-09-29T14:06:04.984308Z",
+      "code_revision": "sha256:3828571e95c2b67286a53cc289d7942487ff40fc228067019eb4ef9ac063a7ab",
+      "created_at": "2026-09-29T00:00:00Z",
       "dataset_sha256": "36363276cb5282093aa454bc14ddd15a68afdc147ecdd989dee392f8c9f6bcbf",
       "feature_names": [
         "candidate_count",
@@ -69,6 +70,11 @@
         "unique_ratio",
         "constraint_compliance"
       ],
+      "fit_configuration": {
+        "iterations": 1500,
+        "learning_rate": 0.05,
+        "regularization": 0.001
+      },
       "kind": "logistic_coverage",
       "model_version": "controlled-independent-v1",
       "parameters": {
@@ -78,7 +84,10 @@
         "max_similarity": 2.067865818585579,
         "unique_ratio": -1.5809622528366978
       },
-      "schema_version": "1",
+      "schema_version": "2",
+      "training_case_ids_sha256": "67c3c9460269739202976a45846c6f3d86d12349dc16a472506b032a80d5b5e9",
+      "training_record_count": 50,
+      "training_split": "train",
       "validation_metrics": {
         "brier": 0.18449823259762338,
         "count": 20,
@@ -96,16 +105,25 @@
       "expected_calibration_error": 0.23950257316967954
     },
     "platt_artifact": {
-      "created_at": "2026-09-29T14:06:04.983308Z",
+      "code_revision": "sha256:3828571e95c2b67286a53cc289d7942487ff40fc228067019eb4ef9ac063a7ab",
+      "created_at": "2026-09-29T00:00:00Z",
       "dataset_sha256": "36363276cb5282093aa454bc14ddd15a68afdc147ecdd989dee392f8c9f6bcbf",
       "feature_names": [],
+      "fit_configuration": {
+        "iterations": 1000,
+        "learning_rate": 0.05,
+        "regularization": 0.001
+      },
       "kind": "platt",
       "model_version": "controlled-same-backbone-v1",
       "parameters": {
         "intercept": -3.3502022263743148,
         "slope": 0.8535137022260637
       },
-      "schema_version": "1",
+      "schema_version": "2",
+      "training_case_ids_sha256": "67c3c9460269739202976a45846c6f3d86d12349dc16a472506b032a80d5b5e9",
+      "training_record_count": 50,
+      "training_split": "train",
       "validation_metrics": {
         "brier": 0.20112054521089698,
         "count": 20,

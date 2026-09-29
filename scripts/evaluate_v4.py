@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
 import json
 import math
+from datetime import UTC, datetime
 from pathlib import Path
 
 from dicojev.calibration import (
@@ -30,6 +32,15 @@ FEATURE_NAMES = (
     "unique_ratio",
     "constraint_compliance",
 )
+ARTIFACT_TIME = datetime(2026, 9, 29, tzinfo=UTC)
+
+
+def code_revision() -> str:
+    root = Path(__file__).parents[1]
+    digest = hashlib.sha256()
+    for path in (root / "src/dicojev/calibration.py", Path(__file__)):
+        digest.update(path.read_bytes())
+    return f"sha256:{digest.hexdigest()}"
 
 
 def _bounded(value: float) -> float:
@@ -222,10 +233,18 @@ def evaluate() -> dict:
                 "learned_independent_verifier": reliability_curve(independent, labels, bins=5),
             },
             "platt_artifact": platt.artifact(
-                records, validation, model_version="controlled-same-backbone-v1"
+                records,
+                validation,
+                model_version="controlled-same-backbone-v1",
+                code_revision=code_revision(),
+                created_at=ARTIFACT_TIME,
             ).model_dump(mode="json"),
             "coverage_estimator_artifact": estimator.artifact(
-                records, validation, model_version="controlled-independent-v1"
+                records,
+                validation,
+                model_version="controlled-independent-v1",
+                code_revision=code_revision(),
+                created_at=ARTIFACT_TIME,
             ).model_dump(mode="json"),
         },
         "dependence": {

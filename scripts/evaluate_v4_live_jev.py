@@ -6,6 +6,7 @@ import argparse
 import asyncio
 import hashlib
 import json
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -116,7 +117,11 @@ async def evaluate(dataset: Path, backend: Any) -> dict[str, Any]:
             "platt": calibration_metrics(calibrated, labels).model_dump(mode="json"),
         },
         "calibration_artifact": calibrator.artifact(
-            records, validation, model_version=str(provider_model)
+            records,
+            validation,
+            model_version=str(provider_model),
+            code_revision=f"sha256:{hashlib.sha256(Path(__file__).read_bytes()).hexdigest()}",
+            created_at=datetime.now(UTC),
         ).model_dump(mode="json"),
         "corruption_effects": {
             "mean_adequate_coverage": sum(row["coverage_raw"] for row in adequate) / len(adequate),

@@ -53,6 +53,9 @@ def test_platt_calibration_fits_and_versions_artifact():
     assert artifact.kind == "platt"
     assert artifact.validation_metrics.count == 2
     assert len(artifact.dataset_sha256) == 64
+    assert artifact.training_split == "train"
+    assert artifact.training_record_count == 4
+    assert artifact.fit_configuration["iterations"] == 1000
     restored = PlattCalibrator.from_artifact(artifact)
     assert restored.predict(0.9) == pytest.approx(calibrator.predict(0.9))
 
