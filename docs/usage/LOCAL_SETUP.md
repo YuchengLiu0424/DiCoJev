@@ -8,8 +8,8 @@ Recommended:
 
 ```text
 Python 3.11+
-Linux for GPU/model-serving work
-NVIDIA GPU for the default 26B DLM path
+Mercury API key for fast hosted text generation, or
+enough local RAM for the quantized DiffusionGemma path
 ```
 
 Create the Python environment:
@@ -48,10 +48,10 @@ Purpose:
 
 The default configuration is intentionally compatible with this mode.
 
-## 3. Deployment shape B — local DLM + conventional ranker
+## 3. Deployment shape B — Mercury or local DLM + conventional ranker
 
 ```text
-local DiffusionGemma generator
+Mercury text generator or local DiffusionGemma generator
         |
         v
 CrossEncoderDecisionBackend
@@ -86,6 +86,10 @@ Djev upstream setup evolves quickly. Follow its current repository instructions 
 
 https://github.com/mmastrac/djev
 
+This topology requires a suitably provisioned accelerator host for Djev's patched vLLM stack. It
+is retained as a reference comparison, not as the supported consumer-laptop path. For local runs
+on the current machine, use Laya on port 8000; for hosted reads, use Jev Cloud.
+
 ## 5. Deployment shape D — local DLM + Jev Cloud
 
 ```text
@@ -108,6 +112,10 @@ Never commit an API key or place one in example configs.
 
 This path is useful as a strong hosted structured-decision comparison. Network and provider latency must be measured separately from local generation.
 
+For fast text generation, replace the local generator with `MercuryGenerator` and set
+`INCEPTION_API_KEY`. Mercury and Jev are separate hosted calls and their latency/usage must be
+reported separately. Native image requests remain on local DiffusionGemma.
+
 Jev API documentation:
 
 https://jevmodel.net/docs
@@ -123,15 +131,17 @@ Project DLM Runtime
 
 This path removes the architectural requirement for a Djev service. The first implementation may use separate passes through one runtime; later optimizations may share weights, multimodal preprocessing, or other state when correctness is preserved.
 
-## 7. Default model
+## 7. Generator defaults
 
-The default candidate generator is:
+The local candidate generator is:
 
 ```text
 google/diffusiongemma-26B-A4B-it
 ```
 
-Current model references describe image-text-to-text usage and vLLM/Transformers serving. Model checkpoint size and GPU requirements are significant, so the repository must keep fake/small test paths independent of the full checkpoint.
+The hosted text profile uses Inception Mercury through its OpenAI-compatible API. The local model
+supports image-text input but is slow on the measured CPU setup. Unit tests remain independent of
+both paths.
 
 Model page:
 

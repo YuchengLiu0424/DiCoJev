@@ -68,6 +68,11 @@ risk/compute budget
 
 Images remain first-class references. Unsupported image capability must be explicit rather than silently converted into a caption and labeled native multimodal.
 
+`ImageRef` accepts exactly one of a local path, provider-accessible reference/data URL, or in-memory
+bytes. The v2 reference transport accepts PNG, JPEG, GIF, and WebP up to 10 MiB per image. Local
+paths and bytes are converted to data URLs only at the provider boundary; raw bytes are excluded
+from response traces and default logs.
+
 ## 4. CandidateGenerator
 
 The generator owns open semantic action construction, not final provider JSON.
@@ -81,7 +86,8 @@ class CandidateGenerator(Protocol):
     ) -> DecisionSpec: ...
 ```
 
-The default implementation family is DiffusionGemma.
+The supported implementation family is diffusion language models: hosted Mercury for fast text
+generation and local DiffusionGemma for local/private or native-image generation.
 
 ## 5. DecisionSpec
 
@@ -132,6 +138,7 @@ The canonical protocol is defined in `FEEDBACK_PROTOCOL.md`.
 ## 10. EscalationTarget
 
 An escalation target is separate from a decision backend. It can represent a slower planner, larger model, human approval path, or domain-specific fallback.
+Its normalized result records the target, accepted/unavailable status, and a bounded message.
 
 ## 11. Djev topology
 

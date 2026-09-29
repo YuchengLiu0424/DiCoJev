@@ -32,3 +32,24 @@ python scripts/evaluate_v1.py --backend both --output results/v1_jev_laya.json
 Jev requires `JEV_API_KEY`. Laya requires its local Jev-compatible service at the configured URL.
 The report includes the dataset SHA-256, per-case evidence and selection, coverage Brier score,
 acceptable/preferred selection rates, usage returned by the backend, and latency summaries.
+
+## v2 controlled closed-loop evaluation
+
+`v2_controlled.json` covers adequate, candidate-deletion, distractor, duplicate, unavailable-tool,
+constraint-failure, NOTA, insufficient-information, expansion-recovery, and native multimodal
+conditions. It is a deterministic acceptance fixture, not a general ability benchmark.
+
+```bash
+python scripts/evaluate_v2.py --output results/v2_controlled.json
+```
+
+The report persists per-round coverage and selection evidence, candidate quality, typed feedback,
+controller action, feedback bandwidth, component latency, and compute/budget accounting.
+
+Run the matched live Jev adequate-versus-deleted comparison and persist the normalized result:
+
+```bash
+python scripts/evaluate_v2_jev_deletion.py --output results/v2_jev_deletion.json
+```
+
+This requires `JEV_API_KEY`; the input set is fixed in `v2_jev_candidate_deletion.json`.

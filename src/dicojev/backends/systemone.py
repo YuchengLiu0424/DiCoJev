@@ -11,6 +11,7 @@ from typing import Any
 import httpx
 
 from ..errors import BackendUnavailable, ConfigurationError, MalformedProviderResponse
+from ..multimodal import materialize_image
 from ..schemas import (
     BackendCapabilities,
     Candidate,
@@ -37,6 +38,16 @@ def compile_systemone_request(
         "constraints": list(spec.constraints),
         "candidates": {candidate.id: candidate.action for candidate in semantic},
     }
+    if state.images:
+        wire_state["images"] = [
+            {
+                "url": native.url,
+                "media_type": native.media_type,
+                "alt_text": image.alt_text,
+            }
+            for image in state.images
+            for native in (materialize_image(image),)
+        ]
     return {
         "model": model,
         "state": wire_state,
@@ -200,6 +211,7 @@ class DjevLocalBackend(_SystemOneBackend):
         timeout_seconds: float = 30,
         transport: httpx.AsyncBaseTransport | None = None,
         label_validator: Callable[[str], bool] | None = None,
+        supports_native_multimodal: bool = False,
     ) -> None:
         super().__init__(
             base_url=base_url,
@@ -207,6 +219,12 @@ class DjevLocalBackend(_SystemOneBackend):
             timeout_seconds=timeout_seconds,
             transport=transport,
             label_validator=label_validator or (lambda label: bool(re.fullmatch(r"[A-Z]+", label))),
+        )
+        self.capabilities = self.capabilities.model_copy(
+            update={
+                "supports_images": supports_native_multimodal,
+                "supports_native_multimodal": supports_native_multimodal,
+            }
         )
 
 
@@ -219,7 +237,7 @@ class LayaLocalBackend(_SystemOneBackend):
     def __init__(
         self,
         *,
-        base_url: str = "http://127.0.0.1:8011",
+        base_url: str = "http://127.0.0.1:8000",
         model: str = "english",
         timeout_seconds: float = 30,
         transport: httpx.AsyncBaseTransport | None = None,

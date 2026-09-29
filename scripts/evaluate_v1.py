@@ -184,7 +184,7 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--dataset", type=Path, default=DEFAULT_DATASET)
     parser.add_argument("--backend", choices=("none", "jev", "laya", "both"), default="none")
-    parser.add_argument("--laya-url", default="http://127.0.0.1:8011")
+    parser.add_argument("--laya-url", default="http://127.0.0.1:8000")
     parser.add_argument("--timeout", type=float, default=60)
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()

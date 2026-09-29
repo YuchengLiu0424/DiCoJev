@@ -5,7 +5,7 @@ from __future__ import annotations
 from enum import Enum
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, HttpUrl, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class StrictModel(BaseModel):
@@ -13,9 +13,26 @@ class StrictModel(BaseModel):
 
 
 class ImageRef(StrictModel):
-    uri: HttpUrl | str
+    """A bounded native image source.
+
+    ``uri`` accepts a local path, provider-accessible reference, or data URL. ``data``
+    carries in-memory bytes. Exactly one source is required.
+    """
+
+    uri: str | None = None
+    data: bytes | None = Field(default=None, repr=False)
     media_type: str | None = None
     alt_text: str | None = None
+
+    @model_validator(mode="after")
+    def validate_source(self) -> ImageRef:
+        if (self.uri is None) == (self.data is None):
+            raise ValueError("exactly one of uri or data is required")
+        if self.media_type is not None and not self.media_type.startswith("image/"):
+            raise ValueError("image media_type must start with image/")
+        if self.data is not None and len(self.data) > 10 * 1024 * 1024:
+            raise ValueError("image bytes exceed the 10 MiB limit")
+        return self
 
 
 class MultimodalState(StrictModel):
@@ -48,6 +65,7 @@ class Candidate(StrictModel):
     synthetic: bool = False
     generation_round: int = Field(default=0, ge=0)
     original_action: str | None = None
+    constraint_violations: tuple[str, ...] = ()
 
 
 class DecisionSpec(StrictModel):
@@ -90,6 +108,12 @@ class CandidateQuality(StrictModel):
     tool_available: bool = True
     constraint_compliant: bool = True
     redundancy_group: str | None = None
+
+
+class GeneratorCapabilities(StrictModel):
+    supports_text: bool = True
+    supports_images: bool = False
+    supports_native_multimodal: bool = False
 
 
 class BackendCapabilities(StrictModel):
@@ -205,6 +229,8 @@ class TelemetryEvent(StrictModel):
     coverage_calibrated: float | None = Field(default=None, ge=0, le=1)
     selection_raw: float | None = Field(default=None, ge=0, le=1)
     selection_calibrated: float | None = Field(default=None, ge=0, le=1)
+    selected_candidate_id: str | None = None
+    selection_probabilities: dict[str, float] = Field(default_factory=dict)
     feedback_codes: tuple[FeedbackCode, ...] = ()
     feedback_serialized_bytes: int = Field(default=0, ge=0)
     feedback_referenced_candidate_ids: int = Field(default=0, ge=0)
@@ -212,6 +238,13 @@ class TelemetryEvent(StrictModel):
     controller_action: MetaAction
     controller_reason_code: str
     latency_ms: dict[str, float] = Field(default_factory=dict)
+    compute_units: dict[str, float] = Field(default_factory=dict)
+    candidate_quality: dict[str, CandidateQuality] = Field(default_factory=dict)
+    remaining_candidate_budget: int = Field(default=0, ge=0)
+    remaining_expansion_budget: int = Field(default=0, ge=0)
+    remaining_latency_ms: float | None = Field(default=None, ge=0)
+    remaining_compute_units: float | None = Field(default=None, ge=0)
+    image_count: int = Field(default=0, ge=0)
 
 
 class DecisionResponse(StrictModel):
@@ -222,10 +255,18 @@ class DecisionResponse(StrictModel):
     backend_result: DecisionBackendResult
     feedback: FeedbackBundle
     trace: tuple[TelemetryEvent, ...]
-    escalation_result: str | None = None
+    total_latency_ms: float = Field(default=0, ge=0)
+    total_compute_units: float = Field(default=0, ge=0)
+    escalation_result: EscalationResult | None = None
 
 
 class EscalationRequest(StrictModel):
     request: DecisionRequest
     candidates: tuple[Candidate, ...]
     reason_code: str
+
+
+class EscalationResult(StrictModel):
+    target: str = Field(min_length=1)
+    status: Literal["accepted", "unavailable"]
+    message: str = Field(min_length=1)

@@ -1,12 +1,13 @@
 """Explicitly gated real-service smoke tests."""
 
+import base64
 import os
 
 import pytest
 
 from dicojev.backends import DjevLocalBackend, JevCloudBackend, LayaLocalBackend
-from dicojev.generator import DiffusionGemmaGenerator
-from dicojev.schemas import Candidate, DecisionRequest, DecisionSpec, MultimodalState
+from dicojev.generator import DiffusionGemmaGenerator, MercuryGenerator
+from dicojev.schemas import Candidate, DecisionRequest, DecisionSpec, ImageRef, MultimodalState
 
 
 @pytest.mark.integration
@@ -19,6 +20,43 @@ async def test_live_diffusiongemma_candidate_smoke():
     spec = await DiffusionGemmaGenerator(
         base_url=os.getenv("DICOJEV_GENERATOR_URL", "http://127.0.0.1:8000")
     ).generate(DecisionRequest(state=MultimodalState(text="A draft is ready."), goal="Choose"))
+    assert spec.candidates
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+@pytest.mark.skipif(
+    os.getenv("DICOJEV_RUN_LIVE_DLM_IMAGE") != "1",
+    reason="set DICOJEV_RUN_LIVE_DLM_IMAGE=1 with the local multimodal DLM running",
+)
+async def test_live_diffusiongemma_native_image_smoke():
+    one_pixel_png = base64.b64decode(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
+    )
+    spec = await DiffusionGemmaGenerator(
+        base_url=os.getenv("DICOJEV_GENERATOR_URL", "http://127.0.0.1:8000")
+    ).generate(
+        DecisionRequest(
+            state=MultimodalState(
+                text="Inspect this image.",
+                images=(ImageRef(data=one_pixel_png, media_type="image/png"),),
+            ),
+            goal="Choose an appropriate next action",
+        )
+    )
+    assert spec.candidates
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+@pytest.mark.skipif(
+    os.getenv("DICOJEV_RUN_LIVE_MERCURY") != "1",
+    reason="set DICOJEV_RUN_LIVE_MERCURY=1 with INCEPTION_API_KEY",
+)
+async def test_live_mercury_candidate_smoke():
+    spec = await MercuryGenerator().generate(
+        DecisionRequest(state=MultimodalState(text="A draft is ready."), goal="Choose")
+    )
     assert spec.candidates
 
 
@@ -80,6 +118,6 @@ async def test_live_jev_structured_read_smoke():
 async def test_live_laya_structured_read_smoke():
     state, spec, candidates = _systemone_fixture()
     result = await LayaLocalBackend(
-        base_url=os.getenv("DICOJEV_LAYA_URL", "http://127.0.0.1:8011")
+        base_url=os.getenv("DICOJEV_LAYA_URL", "http://127.0.0.1:8000")
     ).decide(state, spec, candidates)
     assert result.coverage is not None and result.selection is not None

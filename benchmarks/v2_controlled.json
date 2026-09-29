@@ -1,0 +1,108 @@
+[
+  {
+    "id": "adequate",
+    "state": {"text": "A draft is ready."},
+    "goal": "Choose the safe next action",
+    "candidates": [[{"action": "Review recipients"}]],
+    "backend": [{"coverage": 0.95, "selected": "A", "probabilities": {"A": 0.95, "N": 0.05}}],
+    "budget": {"max_candidates": 4, "max_expansions": 0},
+    "expected_action": "ACT"
+  },
+  {
+    "id": "all-gold-deleted",
+    "state": {"text": "A draft is ready."},
+    "goal": "Choose the safe next action",
+    "candidates": [[{"action": "Send immediately"}]],
+    "backend": [{"coverage": 0.1, "selected": "N", "probabilities": {"A": 0.1, "N": 0.9}}],
+    "budget": {"max_candidates": 4, "max_expansions": 0},
+    "expected_action": "ABSTAIN"
+  },
+  {
+    "id": "best-only-deleted",
+    "state": {"text": "A draft is ready."},
+    "goal": "Choose the safe next action",
+    "candidates": [[{"action": "Ask a colleague to review"}]],
+    "backend": [{"coverage": 0.78, "selected": "A", "probabilities": {"A": 0.72, "N": 0.28}}],
+    "budget": {"max_candidates": 4, "max_expansions": 0},
+    "expected_action": "ACT"
+  },
+  {
+    "id": "distractor-heavy",
+    "state": {"text": "A draft is ready."},
+    "goal": "Choose the safe next action",
+    "candidates": [[{"action": "Archive it"}, {"action": "Review recipients"}, {"action": "Change font"}]],
+    "backend": [{"coverage": 0.9, "selected": "B", "probabilities": {"A": 0.05, "B": 0.9, "C": 0.03, "N": 0.02}}],
+    "budget": {"max_candidates": 5, "max_expansions": 0},
+    "expected_action": "ACT"
+  },
+  {
+    "id": "duplicate-heavy",
+    "state": {"text": "A draft is ready."},
+    "goal": "Choose the safe next action",
+    "candidates": [[{"action": "Review draft carefully"}, {"action": "Review the draft carefully"}], [{"action": "Check recipient addresses"}]],
+    "backend": [{"coverage": 0.9, "selected": "A", "probabilities": {"A": 0.6, "B": 0.35, "N": 0.05}}, {"coverage": 0.95, "selected": "C", "probabilities": {"A": 0.04, "B": 0.03, "C": 0.9, "N": 0.03}}],
+    "budget": {"max_candidates": 5, "max_expansions": 1},
+    "expected_action": "ACT",
+    "expected_feedback": "REDUNDANT_SET"
+  },
+  {
+    "id": "tool-mismatch",
+    "state": {"text": "A draft is ready."},
+    "goal": "Choose the safe next action",
+    "available_tools": ["review"],
+    "candidates": [[{"action": "Send", "tool": "mailer"}], [{"action": "Review", "tool": "review"}]],
+    "backend": [{"coverage": 0.9, "selected": "A", "probabilities": {"A": 0.95, "N": 0.05}}, {"coverage": 0.95, "selected": "B", "probabilities": {"A": 0.05, "B": 0.9, "N": 0.05}}],
+    "budget": {"max_candidates": 4, "max_expansions": 1},
+    "expected_action": "ACT",
+    "expected_feedback": "TOOL_MISMATCH"
+  },
+  {
+    "id": "constraint-failure",
+    "state": {"text": "A draft is ready."},
+    "goal": "Choose the safe next action",
+    "constraints": ["Do not send without review"],
+    "candidates": [[{"action": "Send now", "constraint_violations": ["Do not send without review"]}], [{"action": "Review recipients"}]],
+    "backend": [{"coverage": 0.9, "selected": "A", "probabilities": {"A": 0.95, "N": 0.05}}, {"coverage": 0.95, "selected": "B", "probabilities": {"A": 0.05, "B": 0.9, "N": 0.05}}],
+    "budget": {"max_candidates": 4, "max_expansions": 1},
+    "expected_action": "ACT",
+    "expected_feedback": "CONSTRAINT_FAILURE"
+  },
+  {
+    "id": "nota-needed",
+    "state": {"text": "The required state is missing."},
+    "goal": "Choose safely",
+    "candidates": [[{"action": "Guess"}]],
+    "backend": [{"coverage": 0.2, "selected": "N", "probabilities": {"A": 0.1, "N": 0.9}}],
+    "budget": {"max_candidates": 3, "max_expansions": 0},
+    "expected_action": "ABSTAIN"
+  },
+  {
+    "id": "insufficient-information",
+    "state": {"text": "No observation is available."},
+    "goal": "Choose safely",
+    "candidates": [[{"action": "Wait"}]],
+    "backend": [{}],
+    "budget": {"max_candidates": 3, "max_expansions": 1},
+    "expected_action": "ESCALATE"
+  },
+  {
+    "id": "expansion-recovery",
+    "state": {"text": "A draft is ready."},
+    "goal": "Choose the safe next action",
+    "candidates": [[{"action": "Send now"}], [{"action": "Review recipients"}]],
+    "backend": [{"coverage": 0.15, "selected": "N", "probabilities": {"A": 0.1, "N": 0.9}}, {"coverage": 0.95, "selected": "B", "probabilities": {"A": 0.05, "B": 0.9, "N": 0.05}}],
+    "budget": {"max_candidates": 4, "max_expansions": 1},
+    "expected_action": "ACT",
+    "expected_feedback": "MISSING_ACTION"
+  },
+  {
+    "id": "ambiguous-multimodal",
+    "state": {"text": "Choose based on the image.", "images": [{"uri": "data:image/png;base64,iVBORw0KGgpmaXh0dXJl"}]},
+    "goal": "Choose the visible safe action",
+    "candidates": [[{"action": "Choose left"}, {"action": "Choose right"}], [{"action": "Request a clearer view"}]],
+    "backend": [{"coverage": 0.9, "selected": "A", "probabilities": {"A": 0.5, "B": 0.45, "N": 0.05}}, {"coverage": 0.95, "selected": "C", "probabilities": {"A": 0.03, "B": 0.03, "C": 0.9, "N": 0.04}}],
+    "budget": {"max_candidates": 5, "max_expansions": 1},
+    "expected_action": "ACT",
+    "expected_feedback": "AMBIGUOUS_SELECTION"
+  }
+]

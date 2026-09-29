@@ -33,7 +33,7 @@ def backend_result(coverage, selected, probabilities):
 
 @pytest.mark.asyncio
 async def test_offline_expand_loop_preserves_candidates_and_ids(decision_request):
-    generator = FakeCandidateGenerator([["Send now"], ["Send now", "Review recipients"]])
+    generator = FakeCandidateGenerator([["Archive draft"], ["Archive draft", "Review recipients"]])
     backend = MockDecisionBackend(
         [
             backend_result(0.2, "N", {"A": 0.1, "N": 0.9}),
@@ -48,7 +48,7 @@ async def test_offline_expand_loop_preserves_candidates_and_ids(decision_request
     ).run(decision_request)
     assert response.action is MetaAction.ACT
     assert [(item.id, item.action) for item in response.candidates] == [
-        ("A", "Send now"),
+        ("A", "Archive draft"),
         ("B", "Review recipients"),
     ]
     assert generator.contexts[0].prior_candidates[0].id == "A"
@@ -76,7 +76,9 @@ async def test_backend_and_feedback_failure_fail_closed(decision_request):
         escalation,
     ).run(decision_request)
     assert response.action is MetaAction.ESCALATE
-    assert response.escalation_result == "escalated"
+    assert response.escalation_result is not None
+    assert response.escalation_result.status == "accepted"
+    assert response.escalation_result.message == "escalated"
 
     class BrokenCompiler:
         async def compile(self, feedback):

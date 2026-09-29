@@ -1,0 +1,14 @@
+project:
+  milestone: v2
+  role: hosted_fast_dlm
+model:
+  generator_kind: mercury
+  generator_model: mercury-2.5
+  deployment: hosted
+  base_url: https://api.inceptionlabs.ai/v1
+  timeout_seconds: 60
+decision_backend:
+  kind: jev_cloud
+notes:
+  native_images: false
+  image_requests_use_local_diffusiongemma: true

@@ -10,14 +10,18 @@ from .schemas import (
     DecisionRequest,
     DecisionSpec,
     EscalationRequest,
+    EscalationResult,
     FeedbackBundle,
     GenerationFeedback,
+    GeneratorCapabilities,
     LoopContext,
     MultimodalState,
 )
 
 
 class CandidateGenerator(Protocol):
+    capabilities: GeneratorCapabilities
+
     async def generate(
         self, request: DecisionRequest, context: LoopContext | None = None
     ) -> DecisionSpec: ...
@@ -33,7 +37,14 @@ class DecisionBackend(Protocol):
 
 class RiskController(Protocol):
     async def decide(
-        self, result: DecisionBackendResult, *, round_index: int, expansions_remaining: int
+        self,
+        result: DecisionBackendResult,
+        *,
+        round_index: int,
+        expansions_remaining: int,
+        candidate_budget_remaining: int | None = None,
+        latency_budget_remaining: float | None = None,
+        compute_budget_remaining: float | None = None,
     ) -> ControllerDecision: ...
 
 
@@ -42,4 +53,4 @@ class FeedbackCompiler(Protocol):
 
 
 class EscalationTarget(Protocol):
-    async def escalate(self, request: EscalationRequest) -> str: ...
+    async def escalate(self, request: EscalationRequest) -> EscalationResult: ...

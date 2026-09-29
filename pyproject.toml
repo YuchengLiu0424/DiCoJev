@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "dicojev"
-version = "0.2.0"
+version = "0.3.0"
 description = "Coverage-aware Jev-style decision making over diffusion-generated action sets with typed low-bandwidth feedback"
 requires-python = ">=3.11"
 dependencies = [

@@ -10,7 +10,7 @@ import yaml
 from .backends import DjevLocalBackend, JevCloudBackend, LayaLocalBackend, MockDecisionBackend
 from .backends.cross_encoder import CrossEncoderDecisionBackend
 from .errors import ConfigurationError
-from .generator import DiffusionGemmaGenerator, FakeCandidateGenerator
+from .generator import DiffusionGemmaGenerator, FakeCandidateGenerator, MercuryGenerator
 
 
 def load_config(path: str | Path) -> dict[str, Any]:
@@ -36,6 +36,14 @@ def create_generator(config: dict[str, Any], **dependencies: Any):
             timeout_seconds=model.get("timeout_seconds", 60),
             transport=dependencies.get("transport"),
         )
+    if kind == "mercury":
+        return MercuryGenerator(
+            api_key=dependencies.get("api_key"),
+            base_url=model.get("base_url", "https://api.inceptionlabs.ai/v1"),
+            model=model.get("generator_model", "mercury-2.5"),
+            timeout_seconds=model.get("timeout_seconds", 60),
+            transport=dependencies.get("transport"),
+        )
     raise ConfigurationError(f"unknown generator kind: {kind}")
 
 
@@ -52,7 +60,7 @@ def create_backend(config: dict[str, Any], **dependencies: Any):
         results = dependencies.get("results")
         if results is None:
             raise ConfigurationError("mock backend requires scripted results")
-        return MockDecisionBackend(results)
+        return MockDecisionBackend(results, capabilities=dependencies.get("capabilities"))
     if kind == "jev_cloud":
         return JevCloudBackend(
             api_key=dependencies.get("api_key"),
@@ -62,6 +70,7 @@ def create_backend(config: dict[str, Any], **dependencies: Any):
         return DjevLocalBackend(
             **{key: value for key, value in common.items() if value is not None},
             label_validator=dependencies.get("label_validator"),
+            supports_native_multimodal=backend.get("supports_native_multimodal", False),
         )
     if kind == "laya_local":
         return LayaLocalBackend(

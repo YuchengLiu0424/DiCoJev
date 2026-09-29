@@ -126,6 +126,10 @@ async def test_systemone_adapter_normalizes_bounded_provider_rounding():
     assert result.diagnostics["selection_probability_sum_raw"] == pytest.approx(0.9999)
 
 
+def test_laya_default_matches_server_default_port():
+    assert LayaLocalBackend().base_url == "http://127.0.0.1:8000"
+
+
 @pytest.mark.asyncio
 async def test_cross_encoder_keeps_coverage_separate_from_selection():
     async def scorer(_state, _spec, _candidates):
