@@ -1,5 +1,10 @@
 import base64
 import importlib.util
+import json
+import threading
+import urllib.error
+import urllib.request
+from http.server import ThreadingHTTPServer
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -44,3 +49,64 @@ def test_runtime_probe_reports_unavailable_without_raising():
     module = load_script("runtime_matrix.py")
     result = module.probe("http://127.0.0.1:9/health", timeout=0.01)
     assert result["available"] is False
+
+
+def test_llada_http_contract_reports_real_usage_and_validates_requests():
+    module = load_script("llada_openai_server.py")
+
+    class Runtime:
+        def complete(self, messages, max_tokens, steps, temperature):
+            assert messages == [{"role": "user", "content": "hello"}]
+            assert (max_tokens, steps) == (8, 2)
+            assert temperature == 0.2
+            return "world", 3, 1
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), module.make_handler(Runtime(), "fixture"))
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    base_url = f"http://127.0.0.1:{server.server_address[1]}"
+    try:
+        body = json.dumps(
+            {
+                "messages": [{"role": "user", "content": "hello"}],
+                "max_tokens": 8,
+                "steps": 2,
+            }
+        ).encode()
+        request = urllib.request.Request(
+            base_url + "/v1/chat/completions",
+            data=body,
+            headers={"Content-Type": "application/json"},
+        )
+        with urllib.request.urlopen(request) as response:
+            payload = json.load(response)
+        assert payload["choices"][0]["message"]["content"] == "world"
+        assert payload["usage"] == {
+            "prompt_tokens": 3,
+            "completion_tokens": 1,
+            "total_tokens": 4,
+        }
+
+        invalid = urllib.request.Request(
+            base_url + "/v1/chat/completions",
+            data=json.dumps({"messages": [], "max_tokens": 1}).encode(),
+            headers={"Content-Type": "application/json"},
+        )
+        try:
+            urllib.request.urlopen(invalid)
+        except urllib.error.HTTPError as error:
+            assert error.code == 422
+        else:
+            raise AssertionError("invalid request should return HTTP 422")
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=5)
+
+
+def test_llada_json_normalization_drops_provider_candidate_ids():
+    module = load_script("llada_openai_server.py")
+    content = module.normalize_json_object(
+        '{"candidates":[{"id":"B","action":"verify","tool":"mail"}]}'
+    )
+    assert json.loads(content) == {"candidates": [{"action": "verify", "tool": "mail"}]}

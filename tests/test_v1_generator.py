@@ -51,7 +51,9 @@ async def test_generator_consumes_typed_loop_context_without_repeating_prior_can
         remaining_candidate_budget=3,
         remaining_expansion_budget=0,
     )
-    generator = DiffusionGemmaGenerator(transport=httpx.MockTransport(handler))
+    generator = DiffusionGemmaGenerator(
+        transport=httpx.MockTransport(handler), max_completion_tokens=48
+    )
     spec = await generator.generate(
         DecisionRequest(state=MultimodalState(text="Draft ready"), goal="Choose"), context
     )
@@ -64,6 +66,12 @@ async def test_generator_consumes_typed_loop_context_without_repeating_prior_can
     assert '"id": "A"' in prompt
     assert generator.last_usage == {"x": 1}
     assert generator.last_latency_ms >= 0
+    assert captured[0]["max_tokens"] == 48
+
+
+def test_generator_rejects_nonpositive_completion_cap():
+    with pytest.raises(ValueError, match="must be positive"):
+        DiffusionGemmaGenerator(max_completion_tokens=0)
 
 
 @pytest.mark.asyncio

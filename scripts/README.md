@@ -17,3 +17,6 @@ its dedicated Python environment. It initializes the SigLIP architecture locally
 vision weights embedded in the six checkpoint shards, so inference does not require a second
 model download. `runtime_matrix.py` reports configured credentials, local weight presence, and
 live endpoint availability without printing secret values.
+
+On Windows, `start_llada.ps1` validates the expected model, source, and Python paths before starting
+the server in the foreground. Override its parameters when the runtime is installed elsewhere.

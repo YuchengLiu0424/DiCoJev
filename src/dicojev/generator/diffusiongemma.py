@@ -79,12 +79,16 @@ class DiffusionGemmaGenerator:
         timeout_seconds: float = 60,
         transport: httpx.AsyncBaseTransport | None = None,
         api_key: str | None = None,
+        max_completion_tokens: int | None = None,
     ) -> None:
+        if max_completion_tokens is not None and max_completion_tokens < 1:
+            raise ValueError("max_completion_tokens must be positive")
         self.base_url = base_url.rstrip("/")
         self.model = model
         self.timeout_seconds = timeout_seconds
         self.transport = transport
         self.api_key = api_key
+        self.max_completion_tokens = max_completion_tokens
         self.last_latency_ms = 0.0
         self.last_usage: dict[str, Any] = {}
 
@@ -241,7 +245,10 @@ class DiffusionGemmaGenerator:
                         "model": self.model,
                         "messages": self.build_messages(request, context),
                         "response_format": {"type": "json_object"},
-                        "max_tokens": max(self.minimum_completion_tokens, 32 * limit + 32),
+                        "max_tokens": min(
+                            max(self.minimum_completion_tokens, 32 * limit + 32),
+                            self.max_completion_tokens or 10**9,
+                        ),
                         **self.extra_request_fields,
                     },
                 )
