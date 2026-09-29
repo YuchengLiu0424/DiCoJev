@@ -75,3 +75,9 @@ runtime availability without credential values.
 `v4_feedback_policies_live.json` contains actual matched Mercury/Jev feedback and adaptive-policy
 trajectories. `v4_verifier_correlation_live.json` contains the six-condition local-LLaDA versus
 hosted-Jev comparison. These small studies are acceptance evidence, not population estimates.
+
+## v5 unified runtime release
+
+`v5_evaluation.json` is the final offline end-to-end acceptance report. It combines the complete
+controlled loop matrix with versioned live cache and risk/cost measurements. Harness memory and
+latency are explicitly separated from model-runtime measurements.

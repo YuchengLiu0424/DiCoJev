@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Implemented the v5 unified LLaDA runtime facade so generation and native structured reads share
+  one configured model-server process and diagnostics surface.
+- Added the stable optional `POST /v1/decide` API, explicit allowlisted tool boundary, and
+  action-result/environment-transition traces.
+- Added the v5 offline end-to-end benchmark, full-action/multimodal coverage, p50/p95 latency,
+  Python memory, feedback-token, risk-latency-token, and cache-equivalence reporting.
+- Added a zero-service executable agent demo and promoted package metadata/configuration to
+  `v5` / `1.0.0`.
+
 - Implemented v4 CPU-only calibration records, stable dataset hashing, Platt scaling, learned
   logistic coverage estimation, and versioned calibration artifacts with held-out metrics.
 - Added controlled candidate-set corruptions and learned candidate-quality features, NOTA-aware

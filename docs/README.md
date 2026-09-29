@@ -10,6 +10,9 @@ This directory is the human-facing documentation tree. Each normative concept ha
 | Evaluation hypotheses, metrics, ablations | [`research/EVALUATION.md`](research/EVALUATION.md) | experiment owners |
 | v1 local runtime and backend evaluation evidence | [`research/LOCAL_DLM_TRIAL.md`](research/LOCAL_DLM_TRIAL.md), [`research/V1_EVALUATION.md`](research/V1_EVALUATION.md) | researchers, reviewers |
 | v2 closed-loop and live deletion evidence | [`research/V2_EVALUATION.md`](research/V2_EVALUATION.md) | researchers, reviewers |
+| v3 native-read evidence | [`research/V3_EVALUATION.md`](research/V3_EVALUATION.md), [`research/V3_IMPLEMENTATION.md`](research/V3_IMPLEMENTATION.md) | researchers, runtime engineers |
+| v4 calibration and adaptive-policy evidence | [`research/V4_EVALUATION.md`](research/V4_EVALUATION.md) | researchers, reviewers |
+| v5 unified runtime and 1.0 release evidence | [`research/V5_EVALUATION.md`](research/V5_EVALUATION.md) | users, researchers, maintainers |
 | Component boundaries and runtime flow | [`design/ARCHITECTURE.md`](design/ARCHITECTURE.md) | engineers |
 | Coverage, selection, NOTA, controller semantics | [`design/DECISION_SEMANTICS.md`](design/DECISION_SEMANTICS.md) | engineers, researchers |
 | Typed low-bandwidth feedback protocol | [`design/FEEDBACK_PROTOCOL.md`](design/FEEDBACK_PROTOCOL.md) | engineers, researchers |

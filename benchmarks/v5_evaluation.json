@@ -1,0 +1,1322 @@
+{
+  "agent_execution": {
+    "action": "ACT",
+    "backend_result": {
+      "backend": "offline-demo",
+      "candidate_quality": {
+        "A": {
+          "candidate_id": "A",
+          "constraint_compliant": true,
+          "executable": true,
+          "redundancy_group": null,
+          "syntactically_valid": true,
+          "tool_available": true
+        }
+      },
+      "coverage": {
+        "calibrated": null,
+        "method": "fixture",
+        "raw": 0.95
+      },
+      "diagnostics": {},
+      "latency_ms": 0.0,
+      "selection": {
+        "confidence_calibrated": null,
+        "confidence_raw": 0.95,
+        "probabilities": {
+          "A": 0.95,
+          "N": 0.05
+        },
+        "selected_id": "A"
+      }
+    },
+    "candidates": [
+      {
+        "action": "Record approval",
+        "arguments_hint": {
+          "approved": true
+        },
+        "constraint_violations": [],
+        "generation_round": 0,
+        "id": "A",
+        "original_action": "Record approval",
+        "synthetic": false,
+        "tool": "record"
+      }
+    ],
+    "controller": {
+      "action": "ACT",
+      "feedback": {
+        "controller_reason_code": "thresholds_passed",
+        "generation_relevant": false,
+        "primary": {
+          "code": "ADEQUATE",
+          "details": {},
+          "evidence_refs": [
+            "coverage.raw",
+            "selection.confidence_raw"
+          ],
+          "focus_candidate_ids": [],
+          "severity": null
+        },
+        "secondary": [],
+        "source_round": 0
+      },
+      "reason_code": "thresholds_passed",
+      "selected_candidate_id": "A"
+    },
+    "escalation_result": null,
+    "execution_trace": [
+      {
+        "action": {
+          "candidate_id": "A",
+          "error_code": null,
+          "latency_ms": 0.026900088414549828,
+          "result": {
+            "recorded": true
+          },
+          "status": "executed",
+          "tool": "record"
+        },
+        "state_after": {
+          "approved": true
+        },
+        "state_before": {
+          "approved": false
+        }
+      }
+    ],
+    "feedback": {
+      "controller_reason_code": "thresholds_passed",
+      "generation_relevant": false,
+      "primary": {
+        "code": "ADEQUATE",
+        "details": {},
+        "evidence_refs": [
+          "coverage.raw",
+          "selection.confidence_raw"
+        ],
+        "focus_candidate_ids": [],
+        "severity": null
+      },
+      "secondary": [],
+      "source_round": 0
+    },
+    "selected_candidate": {
+      "action": "Record approval",
+      "arguments_hint": {
+        "approved": true
+      },
+      "constraint_violations": [],
+      "generation_round": 0,
+      "id": "A",
+      "original_action": "Record approval",
+      "synthetic": false,
+      "tool": "record"
+    },
+    "total_compute_units": 2.0,
+    "total_latency_ms": 0.570699805393815,
+    "trace": [
+      {
+        "backend": "offline-demo",
+        "candidate_ids": [
+          "A"
+        ],
+        "candidate_quality": {
+          "A": {
+            "candidate_id": "A",
+            "constraint_compliant": true,
+            "executable": true,
+            "redundancy_group": null,
+            "syntactically_valid": true,
+            "tool_available": true
+          }
+        },
+        "compiled_feedback_prompt_tokens": 0,
+        "compute_units": {
+          "backend": 1.0,
+          "generation": 1.0
+        },
+        "controller_action": "ACT",
+        "controller_reason_code": "thresholds_passed",
+        "coverage_calibrated": null,
+        "coverage_raw": 0.95,
+        "feedback_codes": [
+          "ADEQUATE"
+        ],
+        "feedback_referenced_candidate_ids": 0,
+        "feedback_serialized_bytes": 0,
+        "image_count": 0,
+        "latency_ms": {
+          "backend": 0.0,
+          "feedback_compilation": 0.0,
+          "generation": 0.015199882909655571
+        },
+        "remaining_candidate_budget": 7,
+        "remaining_compute_units": null,
+        "remaining_expansion_budget": 1,
+        "remaining_latency_ms": null,
+        "round_index": 0,
+        "selected_candidate_id": "A",
+        "selection_calibrated": null,
+        "selection_probabilities": {
+          "A": 0.95,
+          "N": 0.05
+        },
+        "selection_raw": 0.95,
+        "semantic_candidate_count": 1
+      }
+    ]
+  },
+  "cases": 11,
+  "controller_actions": [
+    "ABSTAIN",
+    "ACT",
+    "ESCALATE",
+    "EXPAND"
+  ],
+  "evidence_class": "offline_end_to_end_acceptance_plus_prior_live_measurements",
+  "feedback_tokens": {
+    "mean_per_case": 8.545454545454545,
+    "total": 94
+  },
+  "final_actions": [
+    "ABSTAIN",
+    "ACT",
+    "ESCALATE"
+  ],
+  "gpu_memory": {
+    "reason": "Evaluation host is CPU-only; no model GPU allocation can be measured.",
+    "status": "not_available"
+  },
+  "latency_ms": {
+    "mean": 0.7183818061920729,
+    "p50": 0.6963999476283789,
+    "p95": 1.5393998473882675
+  },
+  "limitations": [
+    "Offline acceptance latency and Python memory are harness measurements, not model runtime measurements.",
+    "Live model latency and policy results remain in the versioned v3/v4 artifacts."
+  ],
+  "multimodal_cases": 1,
+  "passed": 11,
+  "peak_python_memory_bytes": 15741253,
+  "risk_latency_token": {
+    "learned_missing_action_recovery": 0.4,
+    "risk_latency_token_curve": [
+      {
+        "coverage_threshold": 0.0,
+        "mean_latency_ms": 1583.6041799746454,
+        "mean_tokens": 0.0,
+        "risk": 1.0
+      },
+      {
+        "coverage_threshold": 1.0,
+        "mean_latency_ms": 1337.673020036891,
+        "mean_tokens": 0.0,
+        "risk": 1.0
+      },
+      {
+        "coverage_threshold": 2.0,
+        "mean_latency_ms": 4971.842439984903,
+        "mean_tokens": 24.0,
+        "risk": 0.4
+      }
+    ],
+    "table": {
+      "adaptive": {
+        "expansion_rate": 0.0,
+        "mean_compute_units": 2.0,
+        "mean_feedback_tokens": 0.0,
+        "mean_latency_ms": 1337.673020036891,
+        "risk": 1.0
+      },
+      "fixed_one_round": {
+        "expansion_rate": 0.0,
+        "mean_compute_units": 2.0,
+        "mean_feedback_tokens": 0.0,
+        "mean_latency_ms": 1583.6041799746454,
+        "risk": 1.0
+      },
+      "fixed_two_round": {
+        "expansion_rate": 1.0,
+        "mean_compute_units": 4.0,
+        "mean_feedback_tokens": 24.0,
+        "mean_latency_ms": 4971.842439984903,
+        "risk": 0.4
+      }
+    },
+    "training_cases": [
+      "email_unverified_recipients",
+      "overwrite_only_copy",
+      "meeting_time_conflict"
+    ]
+  },
+  "schema_version": "1",
+  "shared_runtime_measurements": {
+    "equivalent_coverage": true,
+    "equivalent_selection": true,
+    "improvement_percent": 10.8,
+    "native_image_cached_ms": 890084.35,
+    "native_image_uncached_ms": 997872.19
+  },
+  "source_report": {
+    "cases": [
+      {
+        "action": "ACT",
+        "expected_action": "ACT",
+        "feedback_codes": [
+          "ADEQUATE"
+        ],
+        "id": "adequate",
+        "passed": true,
+        "rounds": [
+          {
+            "backend": "mock",
+            "candidate_ids": [
+              "A"
+            ],
+            "candidate_quality": {
+              "A": {
+                "candidate_id": "A",
+                "constraint_compliant": true,
+                "executable": true,
+                "redundancy_group": null,
+                "syntactically_valid": true,
+                "tool_available": true
+              }
+            },
+            "compiled_feedback_prompt_tokens": 0,
+            "compute_units": {
+              "backend": 1.0,
+              "generation": 1.0
+            },
+            "controller_action": "ACT",
+            "controller_reason_code": "thresholds_passed",
+            "coverage_calibrated": null,
+            "coverage_raw": 0.95,
+            "feedback_codes": [
+              "ADEQUATE"
+            ],
+            "feedback_referenced_candidate_ids": 0,
+            "feedback_serialized_bytes": 0,
+            "image_count": 0,
+            "latency_ms": {
+              "backend": 0.0,
+              "feedback_compilation": 0.0,
+              "generation": 0.019800150766968727
+            },
+            "remaining_candidate_budget": 3,
+            "remaining_compute_units": null,
+            "remaining_expansion_budget": 0,
+            "remaining_latency_ms": null,
+            "round_index": 0,
+            "selected_candidate_id": "A",
+            "selection_calibrated": null,
+            "selection_probabilities": {
+              "A": 0.95,
+              "N": 0.05
+            },
+            "selection_raw": 0.95,
+            "semantic_candidate_count": 1
+          }
+        ],
+        "total_compute_units": 2.0,
+        "total_latency_ms": 0.6963999476283789
+      },
+      {
+        "action": "ABSTAIN",
+        "expected_action": "ABSTAIN",
+        "feedback_codes": [
+          "MISSING_ACTION"
+        ],
+        "id": "all-gold-deleted",
+        "passed": true,
+        "rounds": [
+          {
+            "backend": "mock",
+            "candidate_ids": [
+              "A"
+            ],
+            "candidate_quality": {
+              "A": {
+                "candidate_id": "A",
+                "constraint_compliant": true,
+                "executable": true,
+                "redundancy_group": null,
+                "syntactically_valid": true,
+                "tool_available": true
+              }
+            },
+            "compiled_feedback_prompt_tokens": 0,
+            "compute_units": {
+              "backend": 1.0,
+              "generation": 1.0
+            },
+            "controller_action": "ABSTAIN",
+            "controller_reason_code": "coverage_low:expansion_budget_exhausted",
+            "coverage_calibrated": null,
+            "coverage_raw": 0.1,
+            "feedback_codes": [
+              "MISSING_ACTION"
+            ],
+            "feedback_referenced_candidate_ids": 0,
+            "feedback_serialized_bytes": 0,
+            "image_count": 0,
+            "latency_ms": {
+              "backend": 0.0,
+              "feedback_compilation": 0.0,
+              "generation": 0.01500011421740055
+            },
+            "remaining_candidate_budget": 3,
+            "remaining_compute_units": null,
+            "remaining_expansion_budget": 0,
+            "remaining_latency_ms": null,
+            "round_index": 0,
+            "selected_candidate_id": "N",
+            "selection_calibrated": null,
+            "selection_probabilities": {
+              "A": 0.1,
+              "N": 0.9
+            },
+            "selection_raw": 0.9,
+            "semantic_candidate_count": 1
+          }
+        ],
+        "total_compute_units": 2.0,
+        "total_latency_ms": 0.39490009658038616
+      },
+      {
+        "action": "ACT",
+        "expected_action": "ACT",
+        "feedback_codes": [
+          "ADEQUATE"
+        ],
+        "id": "best-only-deleted",
+        "passed": true,
+        "rounds": [
+          {
+            "backend": "mock",
+            "candidate_ids": [
+              "A"
+            ],
+            "candidate_quality": {
+              "A": {
+                "candidate_id": "A",
+                "constraint_compliant": true,
+                "executable": true,
+                "redundancy_group": null,
+                "syntactically_valid": true,
+                "tool_available": true
+              }
+            },
+            "compiled_feedback_prompt_tokens": 0,
+            "compute_units": {
+              "backend": 1.0,
+              "generation": 1.0
+            },
+            "controller_action": "ACT",
+            "controller_reason_code": "thresholds_passed",
+            "coverage_calibrated": null,
+            "coverage_raw": 0.78,
+            "feedback_codes": [
+              "ADEQUATE"
+            ],
+            "feedback_referenced_candidate_ids": 0,
+            "feedback_serialized_bytes": 0,
+            "image_count": 0,
+            "latency_ms": {
+              "backend": 0.0,
+              "feedback_compilation": 0.0,
+              "generation": 0.012699980288743973
+            },
+            "remaining_candidate_budget": 3,
+            "remaining_compute_units": null,
+            "remaining_expansion_budget": 0,
+            "remaining_latency_ms": null,
+            "round_index": 0,
+            "selected_candidate_id": "A",
+            "selection_calibrated": null,
+            "selection_probabilities": {
+              "A": 0.72,
+              "N": 0.28
+            },
+            "selection_raw": 0.72,
+            "semantic_candidate_count": 1
+          }
+        ],
+        "total_compute_units": 2.0,
+        "total_latency_ms": 0.36259996704757214
+      },
+      {
+        "action": "ACT",
+        "expected_action": "ACT",
+        "feedback_codes": [
+          "ADEQUATE"
+        ],
+        "id": "distractor-heavy",
+        "passed": true,
+        "rounds": [
+          {
+            "backend": "mock",
+            "candidate_ids": [
+              "A",
+              "B",
+              "C"
+            ],
+            "candidate_quality": {
+              "A": {
+                "candidate_id": "A",
+                "constraint_compliant": true,
+                "executable": true,
+                "redundancy_group": null,
+                "syntactically_valid": true,
+                "tool_available": true
+              },
+              "B": {
+                "candidate_id": "B",
+                "constraint_compliant": true,
+                "executable": true,
+                "redundancy_group": null,
+                "syntactically_valid": true,
+                "tool_available": true
+              },
+              "C": {
+                "candidate_id": "C",
+                "constraint_compliant": true,
+                "executable": true,
+                "redundancy_group": null,
+                "syntactically_valid": true,
+                "tool_available": true
+              }
+            },
+            "compiled_feedback_prompt_tokens": 0,
+            "compute_units": {
+              "backend": 1.0,
+              "generation": 1.0
+            },
+            "controller_action": "ACT",
+            "controller_reason_code": "thresholds_passed",
+            "coverage_calibrated": null,
+            "coverage_raw": 0.9,
+            "feedback_codes": [
+              "ADEQUATE"
+            ],
+            "feedback_referenced_candidate_ids": 0,
+            "feedback_serialized_bytes": 0,
+            "image_count": 0,
+            "latency_ms": {
+              "backend": 0.0,
+              "feedback_compilation": 0.0,
+              "generation": 0.012699980288743973
+            },
+            "remaining_candidate_budget": 2,
+            "remaining_compute_units": null,
+            "remaining_expansion_budget": 0,
+            "remaining_latency_ms": null,
+            "round_index": 0,
+            "selected_candidate_id": "B",
+            "selection_calibrated": null,
+            "selection_probabilities": {
+              "A": 0.05,
+              "B": 0.9,
+              "C": 0.03,
+              "N": 0.02
+            },
+            "selection_raw": 0.9,
+            "semantic_candidate_count": 3
+          }
+        ],
+        "total_compute_units": 2.0,
+        "total_latency_ms": 0.4514001775532961
+      },
+      {
+        "action": "ACT",
+        "expected_action": "ACT",
+        "feedback_codes": [
+          "REDUNDANT_SET",
+          "ADEQUATE"
+        ],
+        "id": "duplicate-heavy",
+        "passed": true,
+        "rounds": [
+          {
+            "backend": "mock",
+            "candidate_ids": [
+              "A",
+              "B"
+            ],
+            "candidate_quality": {
+              "A": {
+                "candidate_id": "A",
+                "constraint_compliant": true,
+                "executable": true,
+                "redundancy_group": "redundancy:A",
+                "syntactically_valid": true,
+                "tool_available": true
+              },
+              "B": {
+                "candidate_id": "B",
+                "constraint_compliant": true,
+                "executable": true,
+                "redundancy_group": "redundancy:A",
+                "syntactically_valid": true,
+                "tool_available": true
+              }
+            },
+            "compiled_feedback_prompt_tokens": 17,
+            "compute_units": {
+              "backend": 1.0,
+              "generation": 1.0
+            },
+            "controller_action": "EXPAND",
+            "controller_reason_code": "candidate_set_redundant",
+            "coverage_calibrated": null,
+            "coverage_raw": 0.9,
+            "feedback_codes": [
+              "REDUNDANT_SET"
+            ],
+            "feedback_referenced_candidate_ids": 2,
+            "feedback_serialized_bytes": 273,
+            "image_count": 0,
+            "latency_ms": {
+              "backend": 0.0,
+              "feedback_compilation": 0.09569991379976273,
+              "generation": 0.011899974197149277
+            },
+            "remaining_candidate_budget": 3,
+            "remaining_compute_units": null,
+            "remaining_expansion_budget": 0,
+            "remaining_latency_ms": null,
+            "round_index": 0,
+            "selected_candidate_id": "A",
+            "selection_calibrated": null,
+            "selection_probabilities": {
+              "A": 0.6,
+              "B": 0.35,
+              "N": 0.05
+            },
+            "selection_raw": 0.6,
+            "semantic_candidate_count": 2
+          },
+          {
+            "backend": "mock",
+            "candidate_ids": [
+              "A",
+              "B",
+              "C"
+            ],
+            "candidate_quality": {
+              "A": {
+                "candidate_id": "A",
+                "constraint_compliant": true,
+                "executable": true,
+                "redundancy_group": "redundancy:A",
+                "syntactically_valid": true,
+                "tool_available": true
+              },
+              "B": {
+                "candidate_id": "B",
+                "constraint_compliant": true,
+                "executable": true,
+                "redundancy_group": "redundancy:A",
+                "syntactically_valid": true,
+                "tool_available": true
+              },
+              "C": {
+                "candidate_id": "C",
+                "constraint_compliant": true,
+                "executable": true,
+                "redundancy_group": null,
+                "syntactically_valid": true,
+                "tool_available": true
+              }
+            },
+            "compiled_feedback_prompt_tokens": 0,
+            "compute_units": {
+              "backend": 1.0,
+              "generation": 1.0
+            },
+            "controller_action": "ACT",
+            "controller_reason_code": "thresholds_passed",
+            "coverage_calibrated": null,
+            "coverage_raw": 0.95,
+            "feedback_codes": [
+              "ADEQUATE"
+            ],
+            "feedback_referenced_candidate_ids": 0,
+            "feedback_serialized_bytes": 0,
+            "image_count": 0,
+            "latency_ms": {
+              "backend": 0.0,
+              "feedback_compilation": 0.0,
+              "generation": 0.013899989426136017
+            },
+            "remaining_candidate_budget": 2,
+            "remaining_compute_units": null,
+            "remaining_expansion_budget": 0,
+            "remaining_latency_ms": null,
+            "round_index": 1,
+            "selected_candidate_id": "C",
+            "selection_calibrated": null,
+            "selection_probabilities": {
+              "A": 0.04,
+              "B": 0.03,
+              "C": 0.9,
+              "N": 0.03
+            },
+            "selection_raw": 0.9,
+            "semantic_candidate_count": 3
+          }
+        ],
+        "total_compute_units": 4.0,
+        "total_latency_ms": 1.1762999929487705
+      },
+      {
+        "action": "ACT",
+        "expected_action": "ACT",
+        "feedback_codes": [
+          "TOOL_MISMATCH",
+          "ADEQUATE"
+        ],
+        "id": "tool-mismatch",
+        "passed": true,
+        "rounds": [
+          {
+            "backend": "mock",
+            "candidate_ids": [
+              "A"
+            ],
+            "candidate_quality": {
+              "A": {
+                "candidate_id": "A",
+                "constraint_compliant": true,
+                "executable": false,
+                "redundancy_group": null,
+                "syntactically_valid": true,
+                "tool_available": false
+              }
+            },
+            "compiled_feedback_prompt_tokens": 16,
+            "compute_units": {
+              "backend": 1.0,
+              "generation": 1.0
+            },
+            "controller_action": "EXPAND",
+            "controller_reason_code": "unavailable_candidate_tool",
+            "coverage_calibrated": null,
+            "coverage_raw": 0.9,
+            "feedback_codes": [
+              "TOOL_MISMATCH"
+            ],
+            "feedback_referenced_candidate_ids": 1,
+            "feedback_serialized_bytes": 272,
+            "image_count": 0,
+            "latency_ms": {
+              "backend": 0.0,
+              "feedback_compilation": 0.13900012709200382,
+              "generation": 0.01640012487769127
+            },
+            "remaining_candidate_budget": 3,
+            "remaining_compute_units": null,
+            "remaining_expansion_budget": 0,
+            "remaining_latency_ms": null,
+            "round_index": 0,
+            "selected_candidate_id": "A",
+            "selection_calibrated": null,
+            "selection_probabilities": {
+              "A": 0.95,
+              "N": 0.05
+            },
+            "selection_raw": 0.95,
+            "semantic_candidate_count": 1
+          },
+          {
+            "backend": "mock",
+            "candidate_ids": [
+              "A",
+              "B"
+            ],
+            "candidate_quality": {
+              "A": {
+                "candidate_id": "A",
+                "constraint_compliant": true,
+                "executable": false,
+                "redundancy_group": null,
+                "syntactically_valid": true,
+                "tool_available": false
+              },
+              "B": {
+                "candidate_id": "B",
+                "constraint_compliant": true,
+                "executable": true,
+                "redundancy_group": null,
+                "syntactically_valid": true,
+                "tool_available": true
+              }
+            },
+            "compiled_feedback_prompt_tokens": 0,
+            "compute_units": {
+              "backend": 1.0,
+              "generation": 1.0
+            },
+            "controller_action": "ACT",
+            "controller_reason_code": "thresholds_passed",
+            "coverage_calibrated": null,
+            "coverage_raw": 0.95,
+            "feedback_codes": [
+              "ADEQUATE"
+            ],
+            "feedback_referenced_candidate_ids": 0,
+            "feedback_serialized_bytes": 0,
+            "image_count": 0,
+            "latency_ms": {
+              "backend": 0.0,
+              "feedback_compilation": 0.0,
+              "generation": 0.015300000086426735
+            },
+            "remaining_candidate_budget": 2,
+            "remaining_compute_units": null,
+            "remaining_expansion_budget": 0,
+            "remaining_latency_ms": null,
+            "round_index": 1,
+            "selected_candidate_id": "B",
+            "selection_calibrated": null,
+            "selection_probabilities": {
+              "A": 0.05,
+              "B": 0.9,
+              "N": 0.05
+            },
+            "selection_raw": 0.9,
+            "semantic_candidate_count": 2
+          }
+        ],
+        "total_compute_units": 4.0,
+        "total_latency_ms": 1.5393998473882675
+      },
+      {
+        "action": "ACT",
+        "expected_action": "ACT",
+        "feedback_codes": [
+          "CONSTRAINT_FAILURE",
+          "ADEQUATE"
+        ],
+        "id": "constraint-failure",
+        "passed": true,
+        "rounds": [
+          {
+            "backend": "mock",
+            "candidate_ids": [
+              "A"
+            ],
+            "candidate_quality": {
+              "A": {
+                "candidate_id": "A",
+                "constraint_compliant": false,
+                "executable": false,
+                "redundancy_group": null,
+                "syntactically_valid": true,
+                "tool_available": true
+              }
+            },
+            "compiled_feedback_prompt_tokens": 17,
+            "compute_units": {
+              "backend": 1.0,
+              "generation": 1.0
+            },
+            "controller_action": "EXPAND",
+            "controller_reason_code": "candidate_constraint_violation",
+            "coverage_calibrated": null,
+            "coverage_raw": 0.9,
+            "feedback_codes": [
+              "CONSTRAINT_FAILURE"
+            ],
+            "feedback_referenced_candidate_ids": 1,
+            "feedback_serialized_bytes": 281,
+            "image_count": 0,
+            "latency_ms": {
+              "backend": 0.0,
+              "feedback_compilation": 0.045999884605407715,
+              "generation": 0.012299977242946625
+            },
+            "remaining_candidate_budget": 3,
+            "remaining_compute_units": null,
+            "remaining_expansion_budget": 0,
+            "remaining_latency_ms": null,
+            "round_index": 0,
+            "selected_candidate_id": "A",
+            "selection_calibrated": null,
+            "selection_probabilities": {
+              "A": 0.95,
+              "N": 0.05
+            },
+            "selection_raw": 0.95,
+            "semantic_candidate_count": 1
+          },
+          {
+            "backend": "mock",
+            "candidate_ids": [
+              "A",
+              "B"
+            ],
+            "candidate_quality": {
+              "A": {
+                "candidate_id": "A",
+                "constraint_compliant": false,
+                "executable": false,
+                "redundancy_group": null,
+                "syntactically_valid": true,
+                "tool_available": true
+              },
+              "B": {
+                "candidate_id": "B",
+                "constraint_compliant": true,
+                "executable": true,
+                "redundancy_group": null,
+                "syntactically_valid": true,
+                "tool_available": true
+              }
+            },
+            "compiled_feedback_prompt_tokens": 0,
+            "compute_units": {
+              "backend": 1.0,
+              "generation": 1.0
+            },
+            "controller_action": "ACT",
+            "controller_reason_code": "thresholds_passed",
+            "coverage_calibrated": null,
+            "coverage_raw": 0.95,
+            "feedback_codes": [
+              "ADEQUATE"
+            ],
+            "feedback_referenced_candidate_ids": 0,
+            "feedback_serialized_bytes": 0,
+            "image_count": 0,
+            "latency_ms": {
+              "backend": 0.0,
+              "feedback_compilation": 0.0,
+              "generation": 0.011800089851021767
+            },
+            "remaining_candidate_budget": 2,
+            "remaining_compute_units": null,
+            "remaining_expansion_budget": 0,
+            "remaining_latency_ms": null,
+            "round_index": 1,
+            "selected_candidate_id": "B",
+            "selection_calibrated": null,
+            "selection_probabilities": {
+              "A": 0.05,
+              "B": 0.9,
+              "N": 0.05
+            },
+            "selection_raw": 0.9,
+            "semantic_candidate_count": 2
+          }
+        ],
+        "total_compute_units": 4.0,
+        "total_latency_ms": 0.8696999866515398
+      },
+      {
+        "action": "ABSTAIN",
+        "expected_action": "ABSTAIN",
+        "feedback_codes": [
+          "MISSING_ACTION"
+        ],
+        "id": "nota-needed",
+        "passed": true,
+        "rounds": [
+          {
+            "backend": "mock",
+            "candidate_ids": [
+              "A"
+            ],
+            "candidate_quality": {
+              "A": {
+                "candidate_id": "A",
+                "constraint_compliant": true,
+                "executable": true,
+                "redundancy_group": null,
+                "syntactically_valid": true,
+                "tool_available": true
+              }
+            },
+            "compiled_feedback_prompt_tokens": 0,
+            "compute_units": {
+              "backend": 1.0,
+              "generation": 1.0
+            },
+            "controller_action": "ABSTAIN",
+            "controller_reason_code": "coverage_low:expansion_budget_exhausted",
+            "coverage_calibrated": null,
+            "coverage_raw": 0.2,
+            "feedback_codes": [
+              "MISSING_ACTION"
+            ],
+            "feedback_referenced_candidate_ids": 0,
+            "feedback_serialized_bytes": 0,
+            "image_count": 0,
+            "latency_ms": {
+              "backend": 0.0,
+              "feedback_compilation": 0.0,
+              "generation": 0.011600088328123093
+            },
+            "remaining_candidate_budget": 2,
+            "remaining_compute_units": null,
+            "remaining_expansion_budget": 0,
+            "remaining_latency_ms": null,
+            "round_index": 0,
+            "selected_candidate_id": "N",
+            "selection_calibrated": null,
+            "selection_probabilities": {
+              "A": 0.1,
+              "N": 0.9
+            },
+            "selection_raw": 0.9,
+            "semantic_candidate_count": 1
+          }
+        ],
+        "total_compute_units": 2.0,
+        "total_latency_ms": 0.32299989834427834
+      },
+      {
+        "action": "ESCALATE",
+        "expected_action": "ESCALATE",
+        "feedback_codes": [
+          "INSUFFICIENT_INFORMATION"
+        ],
+        "id": "insufficient-information",
+        "passed": true,
+        "rounds": [
+          {
+            "backend": "mock",
+            "candidate_ids": [
+              "A"
+            ],
+            "candidate_quality": {
+              "A": {
+                "candidate_id": "A",
+                "constraint_compliant": true,
+                "executable": true,
+                "redundancy_group": null,
+                "syntactically_valid": true,
+                "tool_available": true
+              }
+            },
+            "compiled_feedback_prompt_tokens": 0,
+            "compute_units": {
+              "backend": 1.0,
+              "generation": 1.0
+            },
+            "controller_action": "ESCALATE",
+            "controller_reason_code": "missing_evidence",
+            "coverage_calibrated": null,
+            "coverage_raw": null,
+            "feedback_codes": [
+              "INSUFFICIENT_INFORMATION"
+            ],
+            "feedback_referenced_candidate_ids": 0,
+            "feedback_serialized_bytes": 0,
+            "image_count": 0,
+            "latency_ms": {
+              "backend": 0.0,
+              "feedback_compilation": 0.0,
+              "generation": 0.01119985245168209
+            },
+            "remaining_candidate_budget": 2,
+            "remaining_compute_units": null,
+            "remaining_expansion_budget": 1,
+            "remaining_latency_ms": null,
+            "round_index": 0,
+            "selected_candidate_id": null,
+            "selection_calibrated": null,
+            "selection_probabilities": {},
+            "selection_raw": null,
+            "semantic_candidate_count": 1
+          }
+        ],
+        "total_compute_units": 2.0,
+        "total_latency_ms": 0.33650011755526066
+      },
+      {
+        "action": "ACT",
+        "expected_action": "ACT",
+        "feedback_codes": [
+          "MISSING_ACTION",
+          "ADEQUATE"
+        ],
+        "id": "expansion-recovery",
+        "passed": true,
+        "rounds": [
+          {
+            "backend": "mock",
+            "candidate_ids": [
+              "A"
+            ],
+            "candidate_quality": {
+              "A": {
+                "candidate_id": "A",
+                "constraint_compliant": true,
+                "executable": true,
+                "redundancy_group": null,
+                "syntactically_valid": true,
+                "tool_available": true
+              }
+            },
+            "compiled_feedback_prompt_tokens": 24,
+            "compute_units": {
+              "backend": 1.0,
+              "generation": 1.0
+            },
+            "controller_action": "EXPAND",
+            "controller_reason_code": "coverage_below_threshold",
+            "coverage_calibrated": null,
+            "coverage_raw": 0.15,
+            "feedback_codes": [
+              "MISSING_ACTION"
+            ],
+            "feedback_referenced_candidate_ids": 0,
+            "feedback_serialized_bytes": 263,
+            "image_count": 0,
+            "latency_ms": {
+              "backend": 0.0,
+              "feedback_compilation": 0.05519995465874672,
+              "generation": 0.01100008375942707
+            },
+            "remaining_candidate_budget": 3,
+            "remaining_compute_units": null,
+            "remaining_expansion_budget": 0,
+            "remaining_latency_ms": null,
+            "round_index": 0,
+            "selected_candidate_id": "N",
+            "selection_calibrated": null,
+            "selection_probabilities": {
+              "A": 0.1,
+              "N": 0.9
+            },
+            "selection_raw": 0.9,
+            "semantic_candidate_count": 1
+          },
+          {
+            "backend": "mock",
+            "candidate_ids": [
+              "A",
+              "B"
+            ],
+            "candidate_quality": {
+              "A": {
+                "candidate_id": "A",
+                "constraint_compliant": true,
+                "executable": true,
+                "redundancy_group": null,
+                "syntactically_valid": true,
+                "tool_available": true
+              },
+              "B": {
+                "candidate_id": "B",
+                "constraint_compliant": true,
+                "executable": true,
+                "redundancy_group": null,
+                "syntactically_valid": true,
+                "tool_available": true
+              }
+            },
+            "compiled_feedback_prompt_tokens": 0,
+            "compute_units": {
+              "backend": 1.0,
+              "generation": 1.0
+            },
+            "controller_action": "ACT",
+            "controller_reason_code": "thresholds_passed",
+            "coverage_calibrated": null,
+            "coverage_raw": 0.95,
+            "feedback_codes": [
+              "ADEQUATE"
+            ],
+            "feedback_referenced_candidate_ids": 0,
+            "feedback_serialized_bytes": 0,
+            "image_count": 0,
+            "latency_ms": {
+              "backend": 0.0,
+              "feedback_compilation": 0.0,
+              "generation": 0.011299969628453255
+            },
+            "remaining_candidate_budget": 2,
+            "remaining_compute_units": null,
+            "remaining_expansion_budget": 0,
+            "remaining_latency_ms": null,
+            "round_index": 1,
+            "selected_candidate_id": "B",
+            "selection_calibrated": null,
+            "selection_probabilities": {
+              "A": 0.05,
+              "B": 0.9,
+              "N": 0.05
+            },
+            "selection_raw": 0.9,
+            "semantic_candidate_count": 2
+          }
+        ],
+        "total_compute_units": 4.0,
+        "total_latency_ms": 0.8181999437510967
+      },
+      {
+        "action": "ACT",
+        "expected_action": "ACT",
+        "feedback_codes": [
+          "AMBIGUOUS_SELECTION",
+          "ADEQUATE"
+        ],
+        "id": "ambiguous-multimodal",
+        "passed": true,
+        "rounds": [
+          {
+            "backend": "mock",
+            "candidate_ids": [
+              "A",
+              "B"
+            ],
+            "candidate_quality": {
+              "A": {
+                "candidate_id": "A",
+                "constraint_compliant": true,
+                "executable": true,
+                "redundancy_group": null,
+                "syntactically_valid": true,
+                "tool_available": true
+              },
+              "B": {
+                "candidate_id": "B",
+                "constraint_compliant": true,
+                "executable": true,
+                "redundancy_group": null,
+                "syntactically_valid": true,
+                "tool_available": true
+              }
+            },
+            "compiled_feedback_prompt_tokens": 20,
+            "compute_units": {
+              "backend": 1.0,
+              "generation": 1.0
+            },
+            "controller_action": "EXPAND",
+            "controller_reason_code": "selection_below_threshold",
+            "coverage_calibrated": null,
+            "coverage_raw": 0.9,
+            "feedback_codes": [
+              "AMBIGUOUS_SELECTION"
+            ],
+            "feedback_referenced_candidate_ids": 0,
+            "feedback_serialized_bytes": 281,
+            "image_count": 1,
+            "latency_ms": {
+              "backend": 0.0,
+              "feedback_compilation": 0.0475000124424696,
+              "generation": 0.011999858543276787
+            },
+            "remaining_candidate_budget": 3,
+            "remaining_compute_units": null,
+            "remaining_expansion_budget": 0,
+            "remaining_latency_ms": null,
+            "round_index": 0,
+            "selected_candidate_id": "A",
+            "selection_calibrated": null,
+            "selection_probabilities": {
+              "A": 0.5,
+              "B": 0.45,
+              "N": 0.05
+            },
+            "selection_raw": 0.5,
+            "semantic_candidate_count": 2
+          },
+          {
+            "backend": "mock",
+            "candidate_ids": [
+              "A",
+              "B",
+              "C"
+            ],
+            "candidate_quality": {
+              "A": {
+                "candidate_id": "A",
+                "constraint_compliant": true,
+                "executable": true,
+                "redundancy_group": null,
+                "syntactically_valid": true,
+                "tool_available": true
+              },
+              "B": {
+                "candidate_id": "B",
+                "constraint_compliant": true,
+                "executable": true,
+                "redundancy_group": null,
+                "syntactically_valid": true,
+                "tool_available": true
+              },
+              "C": {
+                "candidate_id": "C",
+                "constraint_compliant": true,
+                "executable": true,
+                "redundancy_group": null,
+                "syntactically_valid": true,
+                "tool_available": true
+              }
+            },
+            "compiled_feedback_prompt_tokens": 0,
+            "compute_units": {
+              "backend": 1.0,
+              "generation": 1.0
+            },
+            "controller_action": "ACT",
+            "controller_reason_code": "thresholds_passed",
+            "coverage_calibrated": null,
+            "coverage_raw": 0.95,
+            "feedback_codes": [
+              "ADEQUATE"
+            ],
+            "feedback_referenced_candidate_ids": 0,
+            "feedback_serialized_bytes": 0,
+            "image_count": 1,
+            "latency_ms": {
+              "backend": 0.0,
+              "feedback_compilation": 0.0,
+              "generation": 0.012699980288743973
+            },
+            "remaining_candidate_budget": 2,
+            "remaining_compute_units": null,
+            "remaining_expansion_budget": 0,
+            "remaining_latency_ms": null,
+            "round_index": 1,
+            "selected_candidate_id": "C",
+            "selection_calibrated": null,
+            "selection_probabilities": {
+              "A": 0.03,
+              "B": 0.03,
+              "C": 0.9,
+              "N": 0.04
+            },
+            "selection_raw": 0.9,
+            "semantic_candidate_count": 3
+          }
+        ],
+        "total_compute_units": 4.0,
+        "total_latency_ms": 0.9337998926639557
+      }
+    ],
+    "schema_version": "v2-controlled-1",
+    "summary": {
+      "cases": 11,
+      "controller_actions": [
+        "ABSTAIN",
+        "ACT",
+        "ESCALATE",
+        "EXPAND"
+      ],
+      "final_actions": [
+        "ABSTAIN",
+        "ACT",
+        "ESCALATE"
+      ],
+      "passed": 11
+    }
+  }
+}

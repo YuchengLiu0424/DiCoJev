@@ -16,13 +16,18 @@ from .backends import (
     NativeDLMDecisionBackend,
 )
 from .backends.cross_encoder import CrossEncoderDecisionBackend
+from .controller import ThresholdRiskController
 from .errors import ConfigurationError
+from .feedback import DeterministicFeedbackCompiler
 from .generator import (
     DiffusionGemmaGenerator,
     FakeCandidateGenerator,
     LladaGenerator,
     MercuryGenerator,
 )
+from .harness import DecisionOrchestrator
+from .runtime import AgentRuntime, UnifiedLladaRuntime
+from .v4 import CostAwareRiskController
 
 
 def load_config(path: str | Path) -> dict[str, Any]:
@@ -128,3 +133,45 @@ def create_backend(config: dict[str, Any], **dependencies: Any):
             runtime_name=backend.get("model") or "native-dlm",
         )
     raise ConfigurationError(f"unknown decision backend kind: {kind}")
+
+
+def create_agent_runtime(config: dict[str, Any], **dependencies: Any) -> AgentRuntime:
+    """Construct the v5 end-to-end runtime while keeping external effects injectable."""
+    runtime_config = config.get("runtime", {})
+    model = config.get("model", {})
+    shared_runtime = dependencies.get("unified_runtime")
+    if shared_runtime is None:
+        if model.get("deployment") != "unified_local_runtime":
+            raise ConfigurationError("v5 runtime requires deployment: unified_local_runtime")
+        shared_runtime = UnifiedLladaRuntime(
+            base_url=model.get("base_url", "http://127.0.0.1:8002"),
+            model=model.get("generator_model", "llada-v-local"),
+            timeout_seconds=model.get("timeout_seconds", 600),
+            transport=dependencies.get("transport"),
+            batch_reads=runtime_config.get("batch_reads", False),
+        )
+    controller_config = config.get("controller", {})
+    if controller_config.get("policy", "threshold") == "adaptive_compute":
+        feedback_policy = dependencies.get("feedback_policy")
+        if feedback_policy is None:
+            raise ConfigurationError("adaptive_compute requires a fitted feedback_policy")
+        controller = CostAwareRiskController(
+            feedback_policy,
+            min_coverage=controller_config.get("min_coverage", 0.75),
+            min_selection=controller_config.get("min_selection_confidence", 0.70),
+            expansion_cost=controller_config.get("expansion_cost", 0.5),
+            token_cost_weight=controller_config.get("token_cost_weight", 0.0),
+        )
+    else:
+        controller = ThresholdRiskController(
+            controller_config.get("min_coverage", 0.75),
+            controller_config.get("min_selection_confidence", 0.70),
+        )
+    orchestrator = DecisionOrchestrator(
+        shared_runtime,
+        shared_runtime.decision_backend(),
+        controller,
+        dependencies.get("feedback_compiler") or DeterministicFeedbackCompiler(),
+        dependencies.get("escalation_target"),
+    )
+    return AgentRuntime(orchestrator, dependencies.get("executor"))

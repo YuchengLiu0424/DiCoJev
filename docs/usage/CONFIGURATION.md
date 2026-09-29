@@ -89,3 +89,14 @@ Hosted provider credentials such as `JEV_API_KEY` belong only in environment var
 ## Profiles
 
 Deployment profiles under `configs/` may select mock, Djev, cross-encoder, or native DLM paths. Version snapshots under `configs/versions/` are governed by `VERSION_CONTROL.md` and are not semantic sources of truth.
+
+## v5 unified runtime
+
+The v5 primary configuration uses `deployment: unified_local_runtime`, `generator_kind: llada`,
+and the native backend through one `UnifiedLladaRuntime` instance. `create_agent_runtime()` requires
+a fitted `FeedbackRecoveryPolicy` when `controller.policy` is `adaptive_compute`; this prevents an
+untrained policy from silently controlling production expansion.
+
+The API is enabled with `api.endpoint: /v1/decide`. Tool execution is never configured as an
+arbitrary command string: callers inject an `AllowlistedToolExecutor` whose named handlers receive
+the selected candidate's bounded `arguments_hint` and return a result plus updated state.

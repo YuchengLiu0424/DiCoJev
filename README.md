@@ -104,9 +104,19 @@ pip install -e ".[dev]"
 pytest
 ```
 
-The offline path uses a fake generator, mock backend, deterministic feedback compiler, and threshold
-controller. Mercury, local DiffusionGemma, LLaDA-V, native DLM reads, Djev, and Jev integrations are
+The v5 primary runtime is the local LLaDA-V service on port 8002. One loaded process exposes both
+candidate generation and project-owned structured reads; Jev and Djev are not required. The
+offline path remains available for tests and the zero-service demo. External integrations are
 explicit opt-in tests and do not belong in unit-test prerequisites.
+
+Run the complete offline agent demo with an allowlisted tool and environment transition:
+
+```bash
+python examples/v5_offline_agent.py
+```
+
+The optional API extra exposes the same runtime at `POST /v1/decide` and returns the full typed
+feedback and execution trace.
 
 See [`docs/usage/LOCAL_SETUP.md`](docs/usage/LOCAL_SETUP.md) for deployment shapes and [`docs/usage/MODEL_RUNTIME.md`](docs/usage/MODEL_RUNTIME.md) for the real DLM serving plan.
 
