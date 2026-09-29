@@ -7,10 +7,21 @@ from typing import Any
 
 import yaml
 
-from .backends import DjevLocalBackend, JevCloudBackend, LayaLocalBackend, MockDecisionBackend
+from .backends import (
+    DjevLocalBackend,
+    JevCloudBackend,
+    LayaLocalBackend,
+    MockDecisionBackend,
+    NativeDLMDecisionBackend,
+)
 from .backends.cross_encoder import CrossEncoderDecisionBackend
 from .errors import ConfigurationError
-from .generator import DiffusionGemmaGenerator, FakeCandidateGenerator, MercuryGenerator
+from .generator import (
+    DiffusionGemmaGenerator,
+    FakeCandidateGenerator,
+    LladaGenerator,
+    MercuryGenerator,
+)
 
 
 def load_config(path: str | Path) -> dict[str, Any]:
@@ -43,6 +54,15 @@ def create_generator(config: dict[str, Any], **dependencies: Any):
             model=model.get("generator_model", "mercury-2.5"),
             timeout_seconds=model.get("timeout_seconds", 60),
             transport=dependencies.get("transport"),
+        )
+    if kind == "llada":
+        return LladaGenerator(
+            base_url=model.get("base_url", "http://127.0.0.1:8002"),
+            model=model.get("generator_model", "llada-v-local"),
+            timeout_seconds=model.get("timeout_seconds", 600),
+            transport=dependencies.get("transport"),
+            max_completion_tokens=model.get("max_completion_tokens", 32),
+            max_repair_attempts=model.get("max_repair_attempts", 1),
         )
     raise ConfigurationError(f"unknown generator kind: {kind}")
 
@@ -87,5 +107,14 @@ def create_backend(config: dict[str, Any], **dependencies: Any):
             scorer,
             coverage,
             model_name=backend.get("model") or "configured-cross-encoder",
+        )
+    if kind == "native_dlm":
+        runtime = dependencies.get("runtime")
+        if runtime is None:
+            raise ConfigurationError("native_dlm requires a same-process read runtime")
+        return NativeDLMDecisionBackend(
+            runtime,
+            label_validator=dependencies.get("label_validator"),
+            runtime_name=backend.get("model") or "native-dlm",
         )
     raise ConfigurationError(f"unknown decision backend kind: {kind}")

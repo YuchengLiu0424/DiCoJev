@@ -66,9 +66,10 @@ The default candidate generator family is:
 google/diffusiongemma-26B-A4B-it
 ```
 
-The project supports two real generator paths: hosted Mercury for fast text generation and the
-proven local quantized DiffusionGemma runtime for local/private or native-image work. The earlier
-external GPU-server plan has been abandoned. Hosted Jev remains an optional comparison backend.
+The project supports three real generator paths: hosted Mercury for fast text generation, the
+local quantized DiffusionGemma runtime, and a first-class local LLaDA-V adapter for private native
+multimodal work. The earlier external GPU-server plan has been abandoned. Hosted Jev remains an
+optional comparison backend.
 
 ## Decision backends
 
@@ -104,8 +105,8 @@ pytest
 ```
 
 The offline path uses a fake generator, mock backend, deterministic feedback compiler, and threshold
-controller. Mercury, local DiffusionGemma, Djev, and Jev integrations are explicit opt-in tests and
-do not belong in unit-test prerequisites.
+controller. Mercury, local DiffusionGemma, LLaDA-V, native DLM reads, Djev, and Jev integrations are
+explicit opt-in tests and do not belong in unit-test prerequisites.
 
 See [`docs/usage/LOCAL_SETUP.md`](docs/usage/LOCAL_SETUP.md) for deployment shapes and [`docs/usage/MODEL_RUNTIME.md`](docs/usage/MODEL_RUNTIME.md) for the real DLM serving plan.
 

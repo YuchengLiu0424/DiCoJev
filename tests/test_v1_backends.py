@@ -12,6 +12,7 @@ from dicojev.backends import (
 )
 from dicojev.config import create_backend, create_generator
 from dicojev.errors import ConfigurationError, MalformedProviderResponse
+from dicojev.generator import LladaGenerator
 from dicojev.schemas import Candidate, DecisionSpec, MultimodalState
 
 
@@ -151,6 +152,9 @@ def test_config_only_component_selection():
         {"model": {"generator_kind": "diffusiongemma", "base_url": "http://model"}}
     )
     assert generator.base_url == "http://model"
+    generator = create_generator({"model": {"generator_kind": "llada"}})
+    assert isinstance(generator, LladaGenerator)
+    assert generator.base_url == "http://127.0.0.1:8002"
     backend = create_backend(
         {"decision_backend": {"kind": "djev_local", "base_url": "http://djev"}}
     )

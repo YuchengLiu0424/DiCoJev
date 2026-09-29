@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Began v3 with a project-owned `NativeDLMDecisionBackend`, deterministic coverage/selection
+  canvases, strict label/logit validation, normalized probabilities, and injectable same-process
+  runtime support.
+- Added a first-class local `LladaGenerator` and configuration kind.
+- Centralized bounded structured-output regeneration across OpenAI-compatible generators with
+  aggregate repair, token-usage, and latency telemetry.
+
 - Replaced the abandoned external GPU-server plan with two supported generator paths: hosted
   Mercury for fast text decisions and the proven local DiffusionGemma runtime for local/native-image
   decisions.

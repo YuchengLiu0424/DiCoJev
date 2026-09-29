@@ -20,3 +20,13 @@ live endpoint availability without printing secret values.
 
 On Windows, `start_llada.ps1` validates the expected model, source, and Python paths before starting
 the server in the foreground. Override its parameters when the runtime is installed elsewhere.
+
+After starting it, exercise the first-class adapter with:
+
+```powershell
+.venv\Scripts\python.exe scripts\runtime_smoke.py --generator llada --timeout 600
+```
+
+All OpenAI-compatible candidate adapters share one bounded structured-output repair attempt by
+default. The retry includes the rejected response and validation reason; usage and latency include
+both attempts. Configuration can select LLaDA with `generator_kind: llada`.
