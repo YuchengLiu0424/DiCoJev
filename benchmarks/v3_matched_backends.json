@@ -16,7 +16,7 @@
       "coverage_method": "controlled_set_adequacy",
       "selection_model": "configured-cross-encoder"
     },
-    "latency_ms": 0.013699987903237343,
+    "latency_ms": 0.013800105080008507,
     "selection": {
       "confidence_calibrated": null,
       "confidence_raw": 0.9525741268224334,
@@ -30,6 +30,38 @@
   "djev": {
     "reason": "DICOJEV_DJEV_URL is not configured; local patched stack exceeds host GPU memory",
     "status": "not_run"
+  },
+  "jev": {
+    "result": {
+      "backend": "jev_cloud",
+      "candidate_quality": {},
+      "coverage": {
+        "calibrated": null,
+        "method": "noul_probability",
+        "raw": 0.97
+      },
+      "diagnostics": {
+        "model": "jev-1.13.0",
+        "provider_diagnostics": {},
+        "provider_elapsed_ms": null,
+        "selection_probability_sum_raw": 1.0,
+        "usage": {
+          "input_tokens": 436,
+          "output_tokens": 47
+        }
+      },
+      "latency_ms": 1578.5318999551237,
+      "selection": {
+        "confidence_calibrated": null,
+        "confidence_raw": 1.0,
+        "probabilities": {
+          "A": 1.0,
+          "B": 0.0
+        },
+        "selected_id": "A"
+      }
+    },
+    "status": "pass"
   },
   "native": {
     "backend": "native_dlm",
@@ -58,7 +90,7 @@
         0.0
       ]
     },
-    "latency_ms": 0.10169995948672295,
+    "latency_ms": 0.12029986828565598,
     "selection": {
       "confidence_calibrated": null,
       "confidence_raw": 0.9525741268224334,

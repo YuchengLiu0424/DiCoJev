@@ -53,3 +53,25 @@ python scripts/evaluate_v2_jev_deletion.py --output results/v2_jev_deletion.json
 ```
 
 This requires `JEV_API_KEY`; the input set is fixed in `v2_jev_candidate_deletion.json`.
+
+## v4 controlled calibration and adaptive compute
+
+`v4_evaluation.json` is the complete deterministic report produced by `scripts/evaluate_v4.py`.
+It contains fixed train/validation/test metadata, calibration artifacts and held-out metrics,
+verifier correlations, NOTA analysis, named feedback baselines, fixed/adaptive compute results,
+conformal routing, and separate calibration/candidate-quality/feedback ablations.
+
+`v4_risk_latency_token.csv` is the plot-ready projection of the corresponding curve, and the SVG
+is the dependency-free rendering recreated by the same script. These files are controlled
+fixtures, not live-model performance evidence.
+
+The companion files `v4_jev_live.json`, `v4_jev_deletion_live.json`, and
+`v4_native_repeatability.json` contain real hosted-Jev and local-LLaDA measurements. They close the
+matched independent-reference, candidate-deletion, and fixed-configuration tolerance gates while
+remaining too small to support general model-performance claims. `v4_runtime_audit.json` records
+runtime availability without credential values.
+
+`v4_jev_calibration_live.json` contains the 20-condition task-disjoint hosted-Jev calibration run.
+`v4_feedback_policies_live.json` contains actual matched Mercury/Jev feedback and adaptive-policy
+trajectories. `v4_verifier_correlation_live.json` contains the six-condition local-LLaDA versus
+hosted-Jev comparison. These small studies are acceptance evidence, not population estimates.

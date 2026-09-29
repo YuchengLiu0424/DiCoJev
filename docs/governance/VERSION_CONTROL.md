@@ -180,7 +180,9 @@ Create an installable CPU-only reference implementation of:
 - reproducible coverage/selection reads within documented tolerance;
 - token/label failures are caught before unsafe reads;
 - backend switching requires no public API change;
-- comparison includes DjevLocal/CrossEncoder under matched candidate sets;
+- comparison includes CrossEncoder plus either DjevLocal or hosted Jev under matched candidate
+  sets; hosted Jev is the required independent reference when the local GPU deployment is
+  explicitly unavailable;
 - typed feedback behavior remains backend-neutral.
 
 ---

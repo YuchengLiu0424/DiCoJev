@@ -1,0 +1,27 @@
+{
+  "diffusiongemma": {
+    "available": false,
+    "error": "URLError",
+    "weights_present": true
+  },
+  "djev": {
+    "available": false,
+    "error": "URLError"
+  },
+  "jev": {
+    "configured": true
+  },
+  "laya": {
+    "available": false,
+    "error": "URLError"
+  },
+  "llada": {
+    "available": false,
+    "error": "URLError",
+    "shard_count": 6,
+    "weights_present": true
+  },
+  "mercury": {
+    "configured": true
+  }
+}

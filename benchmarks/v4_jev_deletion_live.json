@@ -1,0 +1,117 @@
+{
+  "backend": "jev_cloud",
+  "conditions": [
+    {
+      "candidates": [
+        {
+          "action": "Review recipients before sending",
+          "arguments_hint": {},
+          "constraint_violations": [],
+          "generation_round": 0,
+          "id": "A",
+          "original_action": "Review recipients before sending",
+          "synthetic": false,
+          "tool": null
+        },
+        {
+          "action": "Save as draft",
+          "arguments_hint": {},
+          "constraint_violations": [],
+          "generation_round": 0,
+          "id": "B",
+          "original_action": "Save as draft",
+          "synthetic": false,
+          "tool": null
+        }
+      ],
+      "id": "adequate",
+      "result": {
+        "backend": "jev_cloud",
+        "candidate_quality": {},
+        "coverage": {
+          "calibrated": null,
+          "method": "noul_probability",
+          "raw": 0.96
+        },
+        "diagnostics": {
+          "model": "jev-1.13.0",
+          "provider_diagnostics": {},
+          "provider_elapsed_ms": null,
+          "selection_probability_sum_raw": 1.0,
+          "usage": {
+            "input_tokens": 457,
+            "output_tokens": 54
+          }
+        },
+        "latency_ms": 1411.9957000948489,
+        "selection": {
+          "confidence_calibrated": null,
+          "confidence_raw": 0.99,
+          "probabilities": {
+            "A": 1.0,
+            "B": 0.0,
+            "N": 0.0
+          },
+          "selected_id": "A"
+        }
+      }
+    },
+    {
+      "candidates": [
+        {
+          "action": "Send immediately",
+          "arguments_hint": {},
+          "constraint_violations": [],
+          "generation_round": 0,
+          "id": "A",
+          "original_action": "Send immediately",
+          "synthetic": false,
+          "tool": null
+        },
+        {
+          "action": "Change the subject line",
+          "arguments_hint": {},
+          "constraint_violations": [],
+          "generation_round": 0,
+          "id": "B",
+          "original_action": "Change the subject line",
+          "synthetic": false,
+          "tool": null
+        }
+      ],
+      "id": "all-acceptable-deleted",
+      "result": {
+        "backend": "jev_cloud",
+        "candidate_quality": {},
+        "coverage": {
+          "calibrated": null,
+          "method": "noul_probability",
+          "raw": 0.38
+        },
+        "diagnostics": {
+          "model": "jev-1.13.0",
+          "provider_diagnostics": {},
+          "provider_elapsed_ms": null,
+          "selection_probability_sum_raw": 1.0,
+          "usage": {
+            "input_tokens": 455,
+            "output_tokens": 54
+          }
+        },
+        "latency_ms": 1534.0877999551594,
+        "selection": {
+          "confidence_calibrated": null,
+          "confidence_raw": 0.57,
+          "probabilities": {
+            "A": 0.0,
+            "B": 0.29,
+            "N": 0.71
+          },
+          "selected_id": "N"
+        }
+      }
+    }
+  ],
+  "dataset": "benchmarks/v2_jev_candidate_deletion.json",
+  "schema_version": "v2-jev-deletion-1"
+}

@@ -1,0 +1,108 @@
+{
+  "configuration": {
+    "candidate_ids": [
+      "A",
+      "N"
+    ],
+    "read_mode": "sequential",
+    "runtime": "LLaDA-V 8.43B local CPU",
+    "state": "A draft email is ready but recipients are unverified."
+  },
+  "runs": [
+    {
+      "coverage": 0.8591918303320635,
+      "coverage_logits": [
+        4.84765625,
+        6.65625
+      ],
+      "index": 1,
+      "latency_ms": 28136.96000003256,
+      "selected_id": "A",
+      "selection_confidence": 0.9958175058144085,
+      "selection_logits": [
+        10.59375,
+        5.12109375
+      ]
+    },
+    {
+      "coverage": 0.8591918303320635,
+      "coverage_logits": [
+        4.84765625,
+        6.65625
+      ],
+      "index": 2,
+      "latency_ms": 34423.62580006011,
+      "selected_id": "A",
+      "selection_confidence": 0.9958175058144085,
+      "selection_logits": [
+        10.59375,
+        5.12109375
+      ]
+    },
+    {
+      "coverage": 0.8591918303320635,
+      "coverage_logits": [
+        4.84765625,
+        6.65625
+      ],
+      "index": 3,
+      "latency_ms": 37976.687600137666,
+      "selected_id": "A",
+      "selection_confidence": 0.9958175058144085,
+      "selection_logits": [
+        10.59375,
+        5.12109375
+      ]
+    },
+    {
+      "coverage": 0.8591918303320635,
+      "coverage_logits": [
+        4.84765625,
+        6.65625
+      ],
+      "index": 4,
+      "latency_ms": 44552.00119991787,
+      "selected_id": "A",
+      "selection_confidence": 0.9958175058144085,
+      "selection_logits": [
+        10.59375,
+        5.12109375
+      ]
+    },
+    {
+      "coverage": 0.8591918303320635,
+      "coverage_logits": [
+        4.84765625,
+        6.65625
+      ],
+      "index": 5,
+      "latency_ms": 46237.027700059116,
+      "selected_id": "A",
+      "selection_confidence": 0.9958175058144085,
+      "selection_logits": [
+        10.59375,
+        5.12109375
+      ]
+    }
+  ],
+  "schema_version": "1",
+  "summary": {
+    "absolute_logit_tolerance": 0.02,
+    "logit_spans": {
+      "coverage_logits": [
+        0.0,
+        0.0
+      ],
+      "selection_logits": [
+        0.0,
+        0.0
+      ]
+    },
+    "maximum_logit_span": 0.0,
+    "pass": true,
+    "runs": 5,
+    "selected_ids": [
+      "A"
+    ]
+  }
+}

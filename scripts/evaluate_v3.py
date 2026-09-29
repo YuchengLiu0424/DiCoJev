@@ -11,6 +11,7 @@ from pathlib import Path
 from dicojev.backends import (
     CrossEncoderDecisionBackend,
     DjevLocalBackend,
+    JevCloudBackend,
     NativeDLMDecisionBackend,
 )
 from dicojev.schemas import Candidate, DecisionSpec, MultimodalState
@@ -45,6 +46,15 @@ async def evaluate() -> dict:
         return 0.88, "controlled_set_adequacy"
 
     cross = await CrossEncoderDecisionBackend(scorer, coverage).decide(STATE, SPEC, CANDIDATES)
+    jev: dict
+    if os.getenv("JEV_API_KEY"):
+        try:
+            result = await JevCloudBackend(timeout_seconds=120).decide(STATE, SPEC, CANDIDATES)
+            jev = {"status": "pass", "result": result.model_dump(mode="json")}
+        except Exception as error:  # noqa: BLE001 - comparison records unavailable leg
+            jev = {"status": "unavailable", "error_type": type(error).__name__}
+    else:
+        jev = {"status": "not_run", "reason": "JEV_API_KEY is not configured"}
     djev_url = os.getenv("DICOJEV_DJEV_URL")
     djev: dict
     if djev_url:
@@ -65,6 +75,7 @@ async def evaluate() -> dict:
         "candidate_ids": [candidate.id for candidate in CANDIDATES],
         "native": native.model_dump(mode="json"),
         "cross_encoder": cross.model_dump(mode="json"),
+        "jev": jev,
         "djev": djev,
     }
 
