@@ -1,0 +1,46 @@
+{
+  "date": "2026-09-29",
+  "host_profile": "consumer Windows laptop, CPU inference, 64 GB RAM",
+  "results": {
+    "mercury": {
+      "status": "pass",
+      "evidence": "bounded initial-plus-expansion closed loop"
+    },
+    "jev": {
+      "status": "pass",
+      "evidence": "matched adequate-versus-deleted candidate comparison"
+    },
+    "laya": {
+      "status": "pass",
+      "latency_ms": 1307.37,
+      "endpoint": "http://127.0.0.1:8000/v1/systemone"
+    },
+    "diffusiongemma": {
+      "status": "pass",
+      "runtime": "llama.cpp commit 3dac51dc80b1400929266453c6ced6748ccf6862",
+      "model": "diffusiongemma-26B-A4B-it-Q4_K_M.gguf",
+      "latency_ms": 250846.07,
+      "notes": "64 requested tokens on a 256-token canvas; output required compact-JSON extraction"
+    },
+    "llada_v": {
+      "status": "pass",
+      "runtime": "Transformers 4.40.0 and PyTorch 2.14.0+cpu",
+      "parameters": 8433894944,
+      "text_http": {
+        "completion_tokens": 16,
+        "latency_ms": 42836.36,
+        "content": "{\n  \"candidates\": [\"verify recipients\"]\n}"
+      },
+      "native_image_http": {
+        "input": "one-pixel red PNG expanded by the native image processor",
+        "completion_tokens": 4,
+        "latency_ms": 447267.4,
+        "content": "red"
+      }
+    },
+    "djev": {
+      "status": "not_run",
+      "reason": "patched vLLM DiffusionGemma stack exceeds the available consumer GPU memory"
+    }
+  }
+}

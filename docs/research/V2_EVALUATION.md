@@ -38,9 +38,15 @@ expansion. After reserving four of eight candidate slots for expansion, the prov
 during expansion at 60 seconds and once during initial generation at 120 seconds. This is evidence
 that the adapter can reach and parse Mercury, but it is not a passing closed-loop smoke test.
 
-## Release decision
+## Runtime closure and release decision
 
-The deterministic v2 implementation and live Jev deletion check pass. The release remains
-provisional: do not tag v2 until either Mercury completes a bounded initial-plus-expansion smoke run,
-or the local DiffusionGemma endpoint completes an equivalent run, and one native-image local run is
-persisted. The existing pull request may be reviewed, but these runtime gates should stay explicit.
+The remaining runtime checks were completed on 2026-09-29. Mercury completed a bounded
+initial-plus-expansion loop. The pinned DiffusionGemma `llama.cpp` runner completed a real CPU
+generation in about 251 seconds. The local LLaDA-V checkpoint loaded all six shards through an
+isolated Transformers 4.40 environment, returned valid candidate JSON through the project-owned
+OpenAI-compatible server, and correctly identified a native red PNG as `red`. The image request
+took about 447 seconds on CPU, so it is a correctness path rather than an interactive deployment.
+
+The cross-runtime record is stored in `benchmarks/v2_runtime_matrix.json`. Djev remains an explicit
+hardware-limited reference rather than a failed local pipeline. These results close the stated v2
+runtime gates and support an `v2.0.0-rc1` release candidate.
