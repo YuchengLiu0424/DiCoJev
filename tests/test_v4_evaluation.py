@@ -27,12 +27,9 @@ def test_v4_evaluation_is_complete_and_deterministic():
         "adaptive",
     }
     compute = first["adaptive_compute"]["table"]
-    assert 0 < compute["adaptive"]["expansion_rate"] < 1
-    assert (
-        compute["fixed_one_round"]["mean_latency_ms"]
-        < compute["adaptive"]["mean_latency_ms"]
-        < compute["fixed_two_round"]["mean_latency_ms"]
-    )
+    assert 0 <= compute["adaptive"]["expansion_rate"] <= 1
+    assert compute["adaptive"]["mean_latency_ms"] < compute["fixed_two_round"]["mean_latency_ms"]
+    assert first["feedback"]["artifact"] == "v4_feedback_policies_live.json"
     assert set(first["ablations"]) == {
         "coverage_calibration",
         "candidate_quality_only",

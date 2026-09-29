@@ -2,11 +2,10 @@
 
 ## Evidence boundary
 
-The v4 release adds the mechanisms and reproducible evaluation path required by the roadmap. Its
-committed benchmark is a deterministic, CPU-only controlled fixture with 90 candidate sets split
-50/20/20 for train/validation/test. It is not a claim about DiffusionGemma, LLaDA, Mercury, Jev,
-or Djev performance. Controlled latency and token values are accounting inputs rather than
-wall-clock measurements.
+The v4 release combines a deterministic 90-record calibration fixture with explicitly labeled live
+Mercury generation, hosted-Jev verification, and local-LLaDA native-read evidence. The live studies
+contain only five base tasks (and six conditions for verifier correlation), so they close the
+mechanical acceptance gates without supporting broad model-performance claims.
 
 ## Calibration and learned coverage
 
@@ -19,6 +18,16 @@ The same-backbone raw score and independent-verifier prediction had Pearson corr
 Their correlations with adequacy labels were 0.6114 and 0.6669 respectively. This is evidence that
 the controlled verifier is related but not identical; it does not establish independence for a
 real model stack.
+
+The live task-disjoint hosted-Jev study contains 20 corruption conditions split 12/4/4 by base
+task. On the four-condition held-out task, Platt calibration reduced Brier score from 0.0027 to
+0.00000432. Mean coverage was 0.966 for adequate sets and 0.158 after acceptable-action deletion;
+NOTA selected every deleted set. The test set is only one base task, so this is pipeline evidence,
+not a stable population estimate.
+
+On six identical adequate/deleted sets, local native LLaDA and hosted Jev coverage had Pearson
+correlation 0.487. Jev correlated with adequacy at 0.946, while native LLaDA correlated at 0.364.
+The real verifiers are partly decorrelated, but the current native read is substantially weaker.
 
 NOTA identified 3 of 13 inadequate held-out sets (23.1%). That weak fixture result is retained
 rather than hidden: NOTA alone is not an adequate coverage detector in this benchmark.
@@ -35,29 +44,30 @@ reproducible rather than only numerically reproducible.
 
 ## Feedback and adaptive compute
 
-The five-case feedback fixture produced:
+Five matched loops used the same deficient first-round candidates, real Mercury regeneration, the
+unchanged controller, and hosted-Jev reevaluation:
 
 | Policy | Recovery | Mean feedback tokens | Recoveries / 100 tokens |
 |---|---:|---:|---:|
-| Typed feedback | 0.80 | 12 | 6.67 |
-| Binary retry | 0.40 | 4 | 10.00 |
-| Long-form feedback | 0.80 | 80 | 1.00 |
+| Typed feedback | 0.60 | 24 | 2.50 |
+| Binary retry | 0.60 | 8 | 7.50 |
+| Long-form feedback | 0.80 | 53 | 1.51 |
 
-Typed feedback matches long-form recovery at much lower bandwidth, but binary retry is more token
-efficient on this small controlled set. v4 therefore does not claim universal typed-feedback
-dominance.
+Typed feedback did not outperform either baseline: it matched binary retry's recovery at three
+times the feedback tokens, while long-form recovered one additional case. This negative result is
+retained and supersedes the earlier constructed comparison.
 
-The fixed/adaptive accounting comparison is:
+The fixed/adaptive table also comes from executed loops:
 
 | Policy | Risk | Mean latency (ms) | Mean tokens | Expansion rate |
 |---|---:|---:|---:|---:|
-| Fixed one round | 0.65 | 28.0 | 18.0 | 0.00 |
-| Adaptive | 0.50 | 42.7 | 22.2 | 0.35 |
-| Fixed two rounds | 0.35 | 70.0 | 30.0 | 1.00 |
+| Fixed one round | 1.00 | 1583.6 | 0 | 0.00 |
+| Adaptive | 1.00 | 1337.7 | 0 | 0.00 |
+| Fixed two rounds | 0.40 | 4971.8 | 24 | 1.00 |
 
-Adaptive routing occupies the intended middle point: lower controlled risk than one round, with
-less cost than always expanding. It does not dominate the fixed two-round policy on risk. That is
-the expected tradeoff, not evidence that coverage awareness is ineffective.
+The learned recovery probability was 0.40, below the configured 0.50 expansion cost, so adaptive
+routing declined every expansion. It saved compute but did not improve risk. Coverage-aware
+routing remains safe and operational, but this policy/data combination is ineffective.
 
 ## Other acceptance evidence
 
@@ -83,16 +93,14 @@ the expected tradeoff, not evidence that coverage awareness is ineffective.
   zero logit span and unchanged selection.
 - `benchmarks/v4_runtime_audit.json` records that both local checkpoints are present, hosted Jev and
   Mercury credentials are configured, and the abandoned local services were offline during audit.
-
-The larger 20-condition hosted-Jev calibration runner is implemented as
-`scripts/evaluate_v4_live_jev.py`. Its inputs are human-auditable variants of the five repository
-fixtures. The resulting artifact is only created when external-dataset submission is explicitly
-authorized; controlled v4 tests never require it.
+- `benchmarks/v4_jev_calibration_live.json`, `v4_feedback_policies_live.json`, and
+  `v4_verifier_correlation_live.json` contain the authorized live evaluation records described
+  above, including full per-round traces and provider usage without credentials.
 
 ## Decision
 
-The v4 software and controlled acceptance gates are implemented. The results establish that the
-pipeline can fit, version, evaluate, and use calibrated coverage and adaptive policies without
-GPU/network dependencies. They do not establish real-world effectiveness; that requires a larger
-held-out task set with live backend scores and measured wall-clock cost, which belongs in the v5
-research release evaluation.
+The v4 software and research-mechanics gates are closed. Calibration works strongly on this small
+Jev study, while typed feedback, adaptive expansion, and native LLaDA coverage do not demonstrate
+superiority. v4 is therefore a complete, reproducible negative/ mixed result rather than a claim
+that coverage awareness is already effective. Larger tasks, multimodal end-to-end runs, and policy
+improvement remain v5 work.

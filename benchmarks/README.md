@@ -70,3 +70,8 @@ The companion files `v4_jev_live.json`, `v4_jev_deletion_live.json`, and
 matched independent-reference, candidate-deletion, and fixed-configuration tolerance gates while
 remaining too small to support general model-performance claims. `v4_runtime_audit.json` records
 runtime availability without credential values.
+
+`v4_jev_calibration_live.json` contains the 20-condition task-disjoint hosted-Jev calibration run.
+`v4_feedback_policies_live.json` contains actual matched Mercury/Jev feedback and adaptive-policy
+trajectories. `v4_verifier_correlation_live.json` contains the six-condition local-LLaDA versus
+hosted-Jev comparison. These small studies are acceptance evidence, not population estimates.

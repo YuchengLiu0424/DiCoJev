@@ -11,57 +11,67 @@
       "raw_brier": 0.4538626722222222
     },
     "feedback_removed": {
-      "cases": 5,
-      "mean_feedback_tokens": 4.0,
-      "recoveries_per_100_tokens": 10.0,
-      "recovery_rate": 0.4
+      "expansion_rate": 0.0,
+      "mean_compute_units": 2.0,
+      "mean_feedback_tokens": 0.0,
+      "mean_latency_ms": 1583.6041799746454,
+      "risk": 1.0
     }
   },
   "adaptive_compute": {
+    "learned_missing_action_recovery": 0.4,
     "risk_latency_token_curve": [
       {
         "coverage_threshold": 0.0,
-        "mean_latency_ms": 28.0,
-        "mean_tokens": 18.0,
-        "risk": 0.65
-      },
-      {
-        "coverage_threshold": 0.82,
-        "mean_latency_ms": 42.7,
-        "mean_tokens": 22.2,
-        "risk": 0.5
+        "mean_latency_ms": 1583.6041799746454,
+        "mean_tokens": 0.0,
+        "risk": 1.0
       },
       {
         "coverage_threshold": 1.0,
-        "mean_latency_ms": 70.0,
-        "mean_tokens": 30.0,
-        "risk": 0.35
+        "mean_latency_ms": 1337.673020036891,
+        "mean_tokens": 0.0,
+        "risk": 1.0
+      },
+      {
+        "coverage_threshold": 2.0,
+        "mean_latency_ms": 4971.842439984903,
+        "mean_tokens": 24.0,
+        "risk": 0.4
       }
     ],
     "table": {
       "adaptive": {
-        "expansion_rate": 0.35,
-        "mean_latency_ms": 42.7,
-        "mean_tokens": 22.2,
-        "risk": 0.5
+        "expansion_rate": 0.0,
+        "mean_compute_units": 2.0,
+        "mean_feedback_tokens": 0.0,
+        "mean_latency_ms": 1337.673020036891,
+        "risk": 1.0
       },
       "fixed_one_round": {
         "expansion_rate": 0.0,
-        "mean_latency_ms": 28.0,
-        "mean_tokens": 18.0,
-        "risk": 0.65
+        "mean_compute_units": 2.0,
+        "mean_feedback_tokens": 0.0,
+        "mean_latency_ms": 1583.6041799746454,
+        "risk": 1.0
       },
       "fixed_two_round": {
         "expansion_rate": 1.0,
-        "mean_latency_ms": 70.0,
-        "mean_tokens": 30.0,
-        "risk": 0.35
+        "mean_compute_units": 4.0,
+        "mean_feedback_tokens": 24.0,
+        "mean_latency_ms": 4971.842439984903,
+        "risk": 0.4
       }
-    }
+    },
+    "training_cases": [
+      "email_unverified_recipients",
+      "overwrite_only_copy",
+      "meeting_time_conflict"
+    ]
   },
   "calibration": {
     "coverage_estimator_artifact": {
-      "code_revision": "sha256:3828571e95c2b67286a53cc289d7942487ff40fc228067019eb4ef9ac063a7ab",
+      "code_revision": "sha256:4dd84b282ec16328bf16020305698c165e39c7d4601519e06cca370e67c631dd",
       "created_at": "2026-09-29T00:00:00Z",
       "dataset_sha256": "36363276cb5282093aa454bc14ddd15a68afdc147ecdd989dee392f8c9f6bcbf",
       "feature_names": [
@@ -105,7 +115,7 @@
       "expected_calibration_error": 0.23950257316967954
     },
     "platt_artifact": {
-      "code_revision": "sha256:3828571e95c2b67286a53cc289d7942487ff40fc228067019eb4ef9ac063a7ab",
+      "code_revision": "sha256:4dd84b282ec16328bf16020305698c165e39c7d4601519e06cca370e67c631dd",
       "created_at": "2026-09-29T00:00:00Z",
       "dataset_sha256": "36363276cb5282093aa454bc14ddd15a68afdc147ecdd989dee392f8c9f6bcbf",
       "feature_names": [],
@@ -254,34 +264,39 @@
     "same_backbone_vs_independent_pearson": 0.6603512714049108,
     "same_backbone_vs_label_pearson": 0.6113598327686461
   },
-  "evidence_class": "deterministic_controlled_fixture",
+  "evidence_class": "controlled_calibration_plus_live_policy_execution",
   "feedback": {
-    "learned_missing_action_probability": 0.7142857142857143,
-    "learned_missing_action_token_cost": 12.0,
+    "artifact": "v4_feedback_policies_live.json",
     "table": {
       "binary_retry": {
         "cases": 5,
-        "mean_feedback_tokens": 4.0,
-        "recoveries_per_100_tokens": 10.0,
-        "recovery_rate": 0.4
+        "mean_compute_units": 4.0,
+        "mean_feedback_tokens": 8.0,
+        "mean_latency_ms": 5710.608439939097,
+        "recoveries_per_100_tokens": 7.5,
+        "recovery_rate": 0.6
       },
       "long_form": {
         "cases": 5,
-        "mean_feedback_tokens": 80.0,
-        "recoveries_per_100_tokens": 1.0,
+        "mean_compute_units": 4.0,
+        "mean_feedback_tokens": 53.0,
+        "mean_latency_ms": 6212.059920094907,
+        "recoveries_per_100_tokens": 1.509433962264151,
         "recovery_rate": 0.8
       },
       "typed": {
         "cases": 5,
-        "mean_feedback_tokens": 12.0,
-        "recoveries_per_100_tokens": 6.666666666666667,
-        "recovery_rate": 0.8
+        "mean_compute_units": 4.0,
+        "mean_feedback_tokens": 24.0,
+        "mean_latency_ms": 4971.842439984903,
+        "recoveries_per_100_tokens": 2.5,
+        "recovery_rate": 0.6
       }
     }
   },
   "limitations": [
-    "No result in this artifact is a live-model performance estimate.",
-    "Latency and token values are controlled accounting fixtures, not wall-clock measurements."
+    "Calibration and estimator metrics use a deterministic controlled fixture.",
+    "Feedback and adaptive-compute tables are measured Mercury/Jev runs on five tasks."
   ],
   "nota": {
     "inadequate_detection_rate": 0.23076923076923078,

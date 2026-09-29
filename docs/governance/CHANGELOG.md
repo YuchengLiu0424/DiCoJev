@@ -18,6 +18,10 @@
 - Closed the v3 tolerance gate with five identical fixed-configuration local LLaDA reads and added
   hosted Jev 1.13.0 to the exact matched Native/CrossEncoder comparison after the local Djev GPU
   deployment was explicitly abandoned.
+- Replaced constructed v4 feedback and adaptive-compute outcomes with matched live Mercury/Jev
+  loop executions, retaining the negative typed-feedback and adaptive-policy results.
+- Added task-disjoint live Jev calibration and a matched local-LLaDA/hosted-Jev verifier
+  correlation study.
 
 - Began v3 with a project-owned `NativeDLMDecisionBackend`, deterministic coverage/selection
   canvases, strict label/logit validation, normalized probabilities, and injectable same-process

@@ -18,12 +18,8 @@ from dicojev.calibration import (
     dataset_sha256,
     reliability_curve,
 )
-from dicojev.schemas import FeedbackCode
 from dicojev.v4 import (
-    FeedbackRecoveryPolicy,
-    RecoveryObservation,
     conformal_coverage_threshold,
-    risk_latency_token_curve,
 )
 
 FEATURE_NAMES = (
@@ -33,6 +29,7 @@ FEATURE_NAMES = (
     "constraint_compliance",
 )
 ARTIFACT_TIME = datetime(2026, 9, 29, tzinfo=UTC)
+LIVE_POLICY_ARTIFACT = Path(__file__).parents[1] / "benchmarks/v4_feedback_policies_live.json"
 
 
 def code_revision() -> str:
@@ -95,81 +92,24 @@ def _pearson(left: list[float], right: list[float]) -> float:
     return numerator / (left_scale * right_scale)
 
 
-def _feedback_comparison() -> dict:
-    rows = {
-        "typed": [(True, 12), (True, 11), (True, 13), (False, 12), (True, 12)],
-        "binary_retry": [(True, 4), (False, 4), (True, 4), (False, 4), (False, 4)],
-        "long_form": [(True, 80), (True, 76), (True, 84), (True, 82), (False, 78)],
-    }
-    table = {}
-    for name, observations in rows.items():
-        recovered = sum(item[0] for item in observations)
-        tokens = sum(item[1] for item in observations)
-        table[name] = {
-            "cases": len(observations),
-            "recovery_rate": recovered / len(observations),
-            "mean_feedback_tokens": tokens / len(observations),
-            "recoveries_per_100_tokens": 100 * recovered / tokens,
+def _live_policy_evidence() -> tuple[dict, dict]:
+    payload = json.loads(LIVE_POLICY_ARTIFACT.read_text(encoding="utf-8"))
+    adaptive = payload["adaptive_compute"]
+    table = adaptive["table"]
+    order = ("fixed_one_round", "adaptive", "fixed_two_round")
+    curve = [
+        {
+            "coverage_threshold": float(index),
+            "risk": table[name]["risk"],
+            "mean_latency_ms": table[name]["mean_latency_ms"],
+            "mean_tokens": table[name]["mean_feedback_tokens"],
         }
-    policy = FeedbackRecoveryPolicy.fit(
-        [
-            RecoveryObservation(FeedbackCode.MISSING_ACTION, recovered, tokens)
-            for recovered, tokens in rows["typed"]
-        ]
+        for index, name in enumerate(order)
+    ]
+    return (
+        {"table": payload["table"], "artifact": str(LIVE_POLICY_ARTIFACT.name)},
+        {**adaptive, "risk_latency_token_curve": curve},
     )
-    return {
-        "table": table,
-        "learned_missing_action_probability": policy.recovery_probability(
-            FeedbackCode.MISSING_ACTION
-        ),
-        "learned_missing_action_token_cost": policy.expected_token_cost(
-            FeedbackCode.MISSING_ACTION
-        ),
-    }
-
-
-def _compute_comparison(test: list[CalibrationRecord], learned: list[float]) -> dict:
-    policies = {
-        "fixed_two_round": lambda _record, _probability: True,
-        "fixed_one_round": lambda _record, _probability: False,
-        "adaptive": lambda record, probability: record.coverage_raw < 0.9 and probability < 0.55,
-    }
-    table = {}
-    curve_rows = []
-    for name, should_expand in policies.items():
-        errors = 0
-        total_latency = 0.0
-        total_tokens = 0.0
-        expansions = 0
-        for record, probability in zip(test, learned, strict=True):
-            expanded = should_expand(record, probability)
-            expansions += int(expanded)
-            latency = 28.0 + (42.0 if expanded else 0.0)
-            tokens = 18.0 + (12.0 if expanded else 0.0)
-            # Controlled expansion fixes adequate-but-low-score sets and half of inadequate sets.
-            success = record.adequate or (expanded and int(record.case_id[-1]) % 2 == 0)
-            errors += int(not success)
-            total_latency += latency
-            total_tokens += tokens
-            curve_rows.append(
-                {
-                    "coverage_threshold": {
-                        "fixed_one_round": 0.0,
-                        "adaptive": 0.82,
-                        "fixed_two_round": 1.0,
-                    }[name],
-                    "error": not success,
-                    "latency_ms": latency,
-                    "tokens": tokens,
-                }
-            )
-        table[name] = {
-            "risk": errors / len(test),
-            "mean_latency_ms": total_latency / len(test),
-            "mean_tokens": total_tokens / len(test),
-            "expansion_rate": expansions / len(test),
-        }
-    return {"table": table, "risk_latency_token_curve": risk_latency_token_curve(curve_rows)}
 
 
 def evaluate() -> dict:
@@ -210,12 +150,13 @@ def evaluate() -> dict:
         )
         for record in test
     ]
+    feedback_evidence, adaptive_evidence = _live_policy_evidence()
     return {
         "schema_version": "1",
-        "evidence_class": "deterministic_controlled_fixture",
+        "evidence_class": "controlled_calibration_plus_live_policy_execution",
         "limitations": [
-            "No result in this artifact is a live-model performance estimate.",
-            "Latency and token values are controlled accounting fixtures, not wall-clock measurements.",
+            "Calibration and estimator metrics use a deterministic controlled fixture.",
+            "Feedback and adaptive-compute tables are measured Mercury/Jev runs on five tasks.",
         ],
         "dataset": {
             "sha256": dataset_sha256(records),
@@ -266,14 +207,14 @@ def evaluate() -> dict:
             "repeated_generation_fixed_extra_rounds": len(test),
             "conformal_triggered_extra_rounds": sum(value < threshold for value in calibrated),
         },
-        "feedback": _feedback_comparison(),
-        "adaptive_compute": _compute_comparison(test, independent),
+        "feedback": feedback_evidence,
+        "adaptive_compute": adaptive_evidence,
         "ablations": {
             "coverage_calibration": calibration_ablation,
             "candidate_quality_only": calibration_metrics(quality_only, labels).model_dump(
                 mode="json"
             ),
-            "feedback_removed": _feedback_comparison()["table"]["binary_retry"],
+            "feedback_removed": adaptive_evidence["table"]["fixed_one_round"],
         },
         "controlled_corruptions": {
             "adequate": {"adequate": True, "expected_effect": "baseline"},
@@ -313,7 +254,7 @@ def write_curve_svg(rows: list[dict[str, float]], output: Path) -> None:
     )
     svg = f'''<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}">
 <rect width="100%" height="100%" fill="white"/>
-<text x="{width / 2}" y="24" text-anchor="middle" font-family="sans-serif" font-size="16">Controlled risk-latency-token curve</text>
+<text x="{width / 2}" y="24" text-anchor="middle" font-family="sans-serif" font-size="16">Measured risk-latency-token curve</text>
 <line x1="{margin}" y1="{height - margin}" x2="{width - margin}" y2="{height - margin}" stroke="black"/>
 <line x1="{margin}" y1="{margin}" x2="{margin}" y2="{height - margin}" stroke="black"/>
 <text x="{width / 2}" y="{height - 12}" text-anchor="middle" font-family="sans-serif" font-size="13">Mean latency (fixture ms)</text>

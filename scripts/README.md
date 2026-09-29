@@ -73,3 +73,9 @@ accounting and must not be reported as live-model performance.
 distractor-added variants for each v1 task, keeps base tasks disjoint across train/validation/test,
 and fits a live-score Platt calibrator. It submits those variants to hosted Jev and therefore must
 only be run with authorization to send the fixture text to that external service.
+
+`evaluate_v4_live_policies.py` runs typed, binary-retry, and long-form feedback through matched
+Mercury-generation/hosted-Jev loops, then executes fixed-one, fixed-two, and learned adaptive
+controllers. `evaluate_v4_verifier_correlation.py` compares local native LLaDA and hosted Jev on
+the same balanced adequate/deleted sets. Both scripts invoke external services and persist full
+normalized evidence without credentials.
