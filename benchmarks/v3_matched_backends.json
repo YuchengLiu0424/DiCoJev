@@ -1,0 +1,72 @@
+{
+  "candidate_ids": [
+    "A",
+    "B"
+  ],
+  "case": "unverified-email-recipients",
+  "cross_encoder": {
+    "backend": "cross_encoder",
+    "candidate_quality": {},
+    "coverage": {
+      "calibrated": null,
+      "method": "controlled_set_adequacy",
+      "raw": 0.88
+    },
+    "diagnostics": {
+      "coverage_method": "controlled_set_adequacy",
+      "selection_model": "configured-cross-encoder"
+    },
+    "latency_ms": 0.013699987903237343,
+    "selection": {
+      "confidence_calibrated": null,
+      "confidence_raw": 0.9525741268224334,
+      "probabilities": {
+        "A": 0.9525741268224334,
+        "B": 0.04742587317756679
+      },
+      "selected_id": "A"
+    }
+  },
+  "djev": {
+    "reason": "DICOJEV_DJEV_URL is not configured; local patched stack exceeds host GPU memory",
+    "status": "not_run"
+  },
+  "native": {
+    "backend": "native_dlm",
+    "candidate_quality": {},
+    "coverage": {
+      "calibrated": null,
+      "method": "native_binary_read",
+      "raw": 0.8807970779778823
+    },
+    "diagnostics": {
+      "coverage_labels": [
+        "0",
+        "1"
+      ],
+      "coverage_logits": [
+        0.0,
+        2.0
+      ],
+      "runtime": "controlled-logits",
+      "selection_labels": [
+        "A",
+        "B"
+      ],
+      "selection_logits": [
+        3.0,
+        0.0
+      ]
+    },
+    "latency_ms": 0.10169995948672295,
+    "selection": {
+      "confidence_calibrated": null,
+      "confidence_raw": 0.9525741268224334,
+      "probabilities": {
+        "A": 0.9525741268224334,
+        "B": 0.04742587317756679
+      },
+      "selected_id": "A"
+    }
+  }
+}

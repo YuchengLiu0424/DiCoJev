@@ -44,3 +44,7 @@ The server also exposes `/v1/structured-read-batch`. Enable it through `batch_re
 native backend configuration or `native_read_smoke.py --batch-reads`. It is deliberately disabled
 by default because the matched CPU trial was slower than cached sequential reads; it should be
 reevaluated on an accelerator.
+
+`evaluate_v3.py` writes the matched Native/CrossEncoder/Djev acceptance comparison. Djev is run only
+when `DICOJEV_DJEV_URL` is configured; otherwise the artifact retains an explicit hardware-waiver
+status.

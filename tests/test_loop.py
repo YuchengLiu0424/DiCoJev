@@ -1,6 +1,6 @@
 import pytest
 
-from dicojev.backends import MockDecisionBackend
+from dicojev.backends import MockDecisionBackend, NativeDLMDecisionBackend
 from dicojev.controller import ThresholdRiskController
 from dicojev.escalation import MockEscalationTarget
 from dicojev.feedback import DeterministicFeedbackCompiler
@@ -137,3 +137,34 @@ async def test_capabilities_control_images_and_nota(decision_request):
         DeterministicFeedbackCompiler(),
     ).run(decision_request)
     assert response.action is MetaAction.ACT
+
+
+@pytest.mark.asyncio
+async def test_native_backend_keeps_typed_feedback_loop_backend_neutral(decision_request):
+    class Runtime:
+        def __init__(self):
+            self.round = 0
+
+        def read(self, request):
+            if request.mode == "coverage":
+                return [3.0, 0.0] if self.round == 0 else [0.0, 3.0]
+            values = [0.0, 3.0] if self.round == 0 else [0.0, 3.0, -2.0]
+            self.round += 1
+            return values
+
+    generator = FakeCandidateGenerator([["Archive draft"], ["Review recipients"]])
+    response = await DecisionOrchestrator(
+        generator,
+        NativeDLMDecisionBackend(Runtime()),
+        ThresholdRiskController(),
+        DeterministicFeedbackCompiler(),
+    ).run(decision_request)
+
+    assert response.action is MetaAction.ACT
+    assert response.selected_candidate.action == "Review recipients"
+    assert [event.backend for event in response.trace] == ["native_dlm", "native_dlm"]
+    assert [event.controller_action for event in response.trace] == [
+        MetaAction.EXPAND,
+        MetaAction.ACT,
+    ]
+    assert generator.contexts[0].generation_feedback.code.value == "MISSING_ACTION"
