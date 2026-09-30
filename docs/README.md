@@ -13,6 +13,7 @@ This directory is the human-facing documentation tree. Each normative concept ha
 | v3 native-read evidence | [`research/V3_EVALUATION.md`](research/V3_EVALUATION.md), [`research/V3_IMPLEMENTATION.md`](research/V3_IMPLEMENTATION.md) | researchers, runtime engineers |
 | v4 calibration and adaptive-policy evidence | [`research/V4_EVALUATION.md`](research/V4_EVALUATION.md) | researchers, reviewers |
 | v5 unified runtime and 1.0 release evidence | [`research/V5_EVALUATION.md`](research/V5_EVALUATION.md) | users, researchers, maintainers |
+| Final holistic project review and evidence boundaries | [`research/FINAL_PROJECT_REVIEW.md`](research/FINAL_PROJECT_REVIEW.md) | users, reviewers, maintainers |
 | Component boundaries and runtime flow | [`design/ARCHITECTURE.md`](design/ARCHITECTURE.md) | engineers |
 | Coverage, selection, NOTA, controller semantics | [`design/DECISION_SEMANTICS.md`](design/DECISION_SEMANTICS.md) | engineers, researchers |
 | Typed low-bandwidth feedback protocol | [`design/FEEDBACK_PROTOCOL.md`](design/FEEDBACK_PROTOCOL.md) | engineers, researchers |

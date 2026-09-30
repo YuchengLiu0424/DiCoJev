@@ -20,7 +20,7 @@ decision_backend:
   timeout_seconds: 600
 
 controller:
-  policy: adaptive_compute
+  policy: threshold
   min_coverage: 0.75
   min_selection_confidence: 0.70
   max_expansions: 2

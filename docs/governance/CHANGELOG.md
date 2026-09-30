@@ -10,6 +10,10 @@
   Python memory, feedback-token, risk-latency-token, and cache-equivalence reporting.
 - Added a zero-service executable agent demo and promoted package metadata/configuration to
   `v5` / `1.0.0`.
+- Added the installable `dicojev-api` entry point, made the evidence-supported threshold controller
+  the runnable default, and documented adaptive compute as an explicit fitted-policy experiment.
+- Completed the final documentation audit with a model-free quickstart, current LLaDA-V serving
+  path, evidence/limitation table, adjacent-framework comparison, and holistic project review.
 
 - Implemented v4 CPU-only calibration records, stable dataset hashing, Platt scaling, learned
   logistic coverage estimation, and versioned calibration artifacts with held-out metrics.

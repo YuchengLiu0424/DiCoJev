@@ -1,19 +1,48 @@
 # Supported DLM Runtime Paths
 
 This document owns real candidate-generator setup. The project no longer plans or requires a
-separate rented GPU server. Supported v2 paths are the hosted Mercury API for fast text decisions
-and the proven local DiffusionGemma runtime for text or native-image decisions.
+separate rented GPU server. The v5 primary path is one local LLaDA-V process for generation and
+native structured reads. Mercury, DiffusionGemma, Jev, Djev, and Laya are comparison paths.
 
 ## Runtime choice
 
 ```text
+final local path:       LLaDA-V generation + structured reads on port 8002
 fast hosted text path:  Inception Mercury API
-local/private path:     google/diffusiongemma-26B-A4B-it
-native image path:      local DiffusionGemma
+legacy local baseline:  google/diffusiongemma-26B-A4B-it
+hosted verifier:        Jev Cloud
 ```
 
 Mercury is treated as text-only until Inception publishes and the project verifies a native image
 request contract. Image requests must fail explicitly on Mercury; they are never silently captioned.
+
+## Unified LLaDA-V runtime
+
+The model checkpoint and official source checkout are installed separately and are never committed
+to this repository. On Windows, start the server with explicit paths:
+
+```powershell
+.\scripts\start_llada.ps1 `
+  -Python 'D:\LLM\LLaDA-V\.venv\Scripts\python.exe' `
+  -ModelPath 'D:\LLM\LLaDA-V' `
+  -CodePath 'D:\LLM\LLaDA-V-code'
+```
+
+The server exposes OpenAI-compatible generation plus `/v1/structured-read` and
+`/v1/structured-read-batch`. Generation and reads share the loaded weights and bounded projected
+vision-feature cache. The batch read path is disabled by default because it was slower than cached
+sequential reads on the measured CPU host.
+
+Verify both contracts before starting DiCoJev's API:
+
+```powershell
+.\.venv\Scripts\python.exe scripts\runtime_smoke.py --generator llada --timeout 600
+.\.venv\Scripts\python.exe scripts\native_read_smoke.py --base-url http://127.0.0.1:8002
+dicojev-api --config configs/default.yaml --host 127.0.0.1 --port 8080
+```
+
+Ollama does not implement the required LLaDA-V masked structured-read contract. The supported
+server is `scripts/llada_openai_server.py` using the official model code.
 
 ## Mercury API
 

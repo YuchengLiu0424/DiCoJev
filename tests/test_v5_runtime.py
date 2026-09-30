@@ -1,9 +1,11 @@
+from pathlib import Path
+
 import httpx
 import pytest
 
 from dicojev.api import create_app
 from dicojev.backends import MockDecisionBackend
-from dicojev.config import create_agent_runtime
+from dicojev.config import create_agent_runtime, load_config
 from dicojev.controller import ThresholdRiskController
 from dicojev.errors import ConfigurationError
 from dicojev.feedback import DeterministicFeedbackCompiler
@@ -21,6 +23,18 @@ from dicojev.schemas import (
     SelectionScore,
 )
 from dicojev.v4 import FeedbackRecoveryPolicy, RecoveryObservation
+
+
+def test_api_cli_has_safe_local_defaults():
+    from dicojev.cli import PACKAGED_DEFAULT_CONFIG, build_parser
+
+    args = build_parser().parse_args([])
+    assert Path(args.config) == PACKAGED_DEFAULT_CONFIG
+    assert load_config(args.config) == load_config(
+        Path(__file__).parents[1] / "configs/default.yaml"
+    )
+    assert args.host == "127.0.0.1"
+    assert args.port == 8080
 
 
 def result(coverage: float, selected: str = "A") -> DecisionBackendResult:
@@ -112,6 +126,13 @@ def test_v5_factory_requires_fitted_policy_and_reuses_injected_runtime():
     agent = create_agent_runtime(config, unified_runtime=shared, feedback_policy=policy)
     assert agent.orchestrator.generator is shared
     assert agent.orchestrator.backend.runtime is shared
+
+
+def test_shipped_v5_config_is_constructible_without_learned_policy():
+    config = load_config(Path(__file__).parents[1] / "configs/default.yaml")
+    shared = UnifiedLladaRuntime(base_url="http://shared:8002")
+    agent = create_agent_runtime(config, unified_runtime=shared)
+    assert isinstance(agent.orchestrator.controller, ThresholdRiskController)
 
 
 @pytest.mark.asyncio

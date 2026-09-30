@@ -13,7 +13,7 @@ runtime:
   reuse_context_when_equivalent: true
   batch_reads: false
 controller:
-  policy: adaptive_compute
+  policy: threshold
   min_coverage: 0.75
   min_selection_confidence: 0.70
   expansion_cost: 0.50
