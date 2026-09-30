@@ -3,6 +3,7 @@
 from typing import Protocol
 
 from .schemas import (
+    ActionExecution,
     BackendCapabilities,
     Candidate,
     ControllerDecision,
@@ -54,3 +55,9 @@ class FeedbackCompiler(Protocol):
 
 class EscalationTarget(Protocol):
     async def escalate(self, request: EscalationRequest) -> EscalationResult: ...
+
+
+class ActionExecutor(Protocol):
+    async def execute(
+        self, candidate: Candidate, state: MultimodalState
+    ) -> tuple[ActionExecution, MultimodalState]: ...

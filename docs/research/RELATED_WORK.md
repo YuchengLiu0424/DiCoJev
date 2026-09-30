@@ -49,7 +49,26 @@ Do not claim that DiCoJev invented:
 - diffusion structured read;
 - Jev-style structured APIs.
 
-## 9. Claims the project can test
+## 9. Relationship to general agent frameworks
+
+DiCoJev is not a workflow-orchestration competitor to LangGraph, Microsoft Agent Framework, Google
+ADK, or similar platforms. Those projects emphasize stateful workflows, multi-agent coordination,
+tools, sessions, deployment, and integrations. DiCoJev can be embedded as one decision node and is
+specialized around generated candidate-set adequacy, bounded typed retries, and explicit
+ACT/EXPAND/ABSTAIN/ESCALATE control.
+
+Likewise, lightweight tool/code-agent libraries such as Hugging Face smolagents optimize the full
+agent loop and model/tool interface. DiCoJev's narrower distinction is evaluating whether several
+generated alternatives contain an acceptable choice before crossing an execution boundary.
+
+References:
+
+- https://docs.langchain.com/oss/python/langgraph/overview
+- https://github.com/microsoft/agent-framework
+- https://google.github.io/adk-docs/
+- https://huggingface.co/docs/smolagents/index
+
+## 10. Claims the project can test
 
 The project can test whether the following combination is useful:
 

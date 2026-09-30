@@ -238,7 +238,9 @@ Create an installable CPU-only reference implementation of:
 - action-result/environment-transition trace;
 - full text + multimodal benchmark suite;
 - all reference backends retained for reproduction;
-- end-to-end p50/p95 latency, GPU memory, feedback token, and risk-latency-token evaluation;
+- end-to-end p50/p95 latency, feedback token, and risk-latency-token evaluation;
+- GPU-memory measurement when a model accelerator is available, otherwise an explicit hardware
+  waiver that is never replaced by host-RAM or fabricated data;
 - reproducible configs and release documentation.
 
 ## Acceptance gate
@@ -251,6 +253,10 @@ Create an installable CPU-only reference implementation of:
 - full benchmark reproduces main research claims;
 - clean installation and local demo succeed from a fresh environment;
 - documentation passes the ownership-map consistency check.
+
+The final v5 CPU-host acceptance records the GPU-memory gate as unavailable with an explicit
+reason. This closes the software release without converting missing accelerator evidence into a
+performance claim.
 
 ## 4. Release PR checklist
 

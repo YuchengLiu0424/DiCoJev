@@ -1,0 +1,55 @@
+project:
+  name: dicojev
+  milestone: v5
+  package_version: 1.0.0
+  environment: local
+
+model:
+  generator_kind: llada
+  generator_model: llada-v-local
+  deployment: unified_local_runtime
+  base_url: http://127.0.0.1:8002
+  timeout_seconds: 600
+  max_candidates: 8
+
+decision_backend:
+  kind: native_dlm
+  runtime_kind: unified_llada
+  base_url: http://127.0.0.1:8002
+  model: llada-v-local
+  timeout_seconds: 600
+
+controller:
+  policy: threshold
+  min_coverage: 0.75
+  min_selection_confidence: 0.70
+  max_expansions: 2
+  max_total_candidates: 16
+  allow_abstain: true
+  allow_escalate: true
+
+feedback:
+  compiler: deterministic_templates
+  max_signals_per_round: 3
+  default_expand_count: 3
+  allow_freeform_reasoning: false
+  record_serialized_size: true
+
+telemetry:
+  enabled: true
+  log_raw_text: false
+  log_images: false
+  preserve_raw_scores: true
+  preserve_calibrated_scores: true
+  log_feedback_codes: true
+  log_feedback_size: true
+
+runtime:
+  share_model_weights: true
+  share_multimodal_preprocessing: true
+  reuse_context_when_equivalent: true
+  batch_reads: false
+
+api:
+  enabled: true
+  endpoint: /v1/decide

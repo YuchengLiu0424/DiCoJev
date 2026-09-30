@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "dicojev"
-version = "0.5.0"
+version = "1.0.0"
 description = "Coverage-aware Jev-style decision making over diffusion-generated action sets with typed low-bandwidth feedback"
 requires-python = ">=3.11"
 dependencies = [
@@ -17,6 +17,9 @@ dependencies = [
 dev = ["pytest>=8", "pytest-asyncio>=0.23", "ruff>=0.6"]
 api = ["fastapi>=0.115", "uvicorn>=0.30"]
 cross-encoder = ["sentence-transformers>=3"]
+
+[project.scripts]
+dicojev-api = "dicojev.cli:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/dicojev"]

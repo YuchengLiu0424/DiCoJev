@@ -79,3 +79,14 @@ Mercury-generation/hosted-Jev loops, then executes fixed-one, fixed-two, and lea
 controllers. `evaluate_v4_verifier_correlation.py` compares local native LLaDA and hosted Jev on
 the same balanced adequate/deleted sets. Both scripts invoke external services and persist full
 normalized evidence without credentials.
+
+`evaluate_v5.py` recreates the final offline acceptance report, including all controller actions,
+text/multimodal cases, p50/p95 harness latency, feedback tokens, Python peak memory, retained live
+risk-latency-token evidence, and shared-runtime cache equivalence.
+
+After installing the `api` extra, `dicojev-api --config configs/default.yaml` serves the v5 runtime
+on localhost port 8080. It expects the LLaDA-V service on the configured port 8002 and fails closed
+if that service is unavailable.
+
+`check_doc_ownership.py` validates that every Markdown target in the authoritative documentation
+map exists. It is a release gate for documentation ownership consistency.

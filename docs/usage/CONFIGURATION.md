@@ -14,15 +14,16 @@ project:
 
 ```yaml
 model:
-  generator_kind: fake
-  generator_model: google/diffusiongemma-26B-A4B-it
-  deployment: local
-  base_url: http://127.0.0.1:8000
-  timeout_seconds: 60
+  generator_kind: llada
+  generator_model: llada-v-local
+  deployment: unified_local_runtime
+  base_url: http://127.0.0.1:8002
+  timeout_seconds: 600
   max_candidates: 8
 ```
 
-`generator_kind` may be `fake`, `mercury`, or `diffusiongemma`. Mercury reads
+`generator_kind` may be `fake`, `llada`, `mercury`, or `diffusiongemma`. LLaDA-V is the v5
+default and shares its endpoint with the native decision backend. Mercury reads
 `INCEPTION_API_KEY`, defaults to `https://api.inceptionlabs.ai/v1` and `mercury-2.5`, and declares
 text-only capability. DiffusionGemma uses the configured local OpenAI-compatible endpoint and
 declares native image capability.
@@ -31,18 +32,18 @@ declares native image capability.
 
 ```yaml
 decision_backend:
-  kind: mock
-  base_url: null
-  model: null
-  timeout_seconds: 30
-  supports_native_multimodal: false
+  kind: native_dlm
+  runtime_kind: unified_llada
+  base_url: http://127.0.0.1:8002
+  model: llada-v-local
+  timeout_seconds: 600
 ```
 
 ## `controller`
 
 ```yaml
 controller:
-  policy: threshold
+  policy: threshold  # safe v5 default
   min_coverage: 0.75
   min_selection_confidence: 0.70
   max_expansions: 2
@@ -89,3 +90,15 @@ Hosted provider credentials such as `JEV_API_KEY` belong only in environment var
 ## Profiles
 
 Deployment profiles under `configs/` may select mock, Djev, cross-encoder, or native DLM paths. Version snapshots under `configs/versions/` are governed by `VERSION_CONTROL.md` and are not semantic sources of truth.
+
+## v5 unified runtime
+
+The v5 primary configuration uses `deployment: unified_local_runtime`, `generator_kind: llada`,
+and the native backend through one `UnifiedLladaRuntime` instance. The shipped policy is
+`threshold`, matching the evidence boundary and making the default config directly constructible.
+If `controller.policy` is changed to `adaptive_compute`, `create_agent_runtime()` requires a fitted
+`FeedbackRecoveryPolicy`; an untrained policy can never silently control expansion.
+
+The API is enabled with `api.endpoint: /v1/decide`. Tool execution is never configured as an
+arbitrary command string: callers inject an `AllowlistedToolExecutor` whose named handlers receive
+the selected candidate's bounded `arguments_hint` and return a result plus updated state.

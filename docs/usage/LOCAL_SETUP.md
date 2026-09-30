@@ -8,8 +8,8 @@ Recommended:
 
 ```text
 Python 3.11+
-Mercury API key for fast hosted text generation, or
-enough local RAM for the quantized DiffusionGemma path
+no external service for offline development, or
+the separately installed LLaDA-V model/source for the final local runtime
 ```
 
 Create the Python environment:
@@ -46,7 +46,8 @@ Purpose:
 - CI;
 - no GPU/network/API keys.
 
-The default configuration is intentionally compatible with this mode.
+The offline example constructs these components directly. `configs/default.yaml` describes the
+real v5 LLaDA-V runtime and therefore expects that service to be available.
 
 ## 3. Deployment shape B — Mercury or local DLM + conventional ranker
 
@@ -120,28 +121,39 @@ Jev API documentation:
 
 https://jevmodel.net/docs
 
-## 6. Deployment shape E — native project DLM read
+## 6. Deployment shape E — unified v5 local runtime (primary)
 
 ```text
-Project DLM Runtime
+LLaDA-V Runtime (one loaded process)
   |
   +-- generate()         -> DecisionSpec
   +-- structured_read()  -> coverage + selection
 ```
 
-This path removes the architectural requirement for a Djev service. The first implementation may use separate passes through one runtime; later optimizations may share weights, multimodal preprocessing, or other state when correctness is preserved.
+This is the v5 default. It removes the architectural requirement for Djev and reuses one model
+process for generation and structured reads. Start it with `scripts/start_llada.ps1`, validate it
+with both `runtime_smoke.py --generator llada` and `native_read_smoke.py`, then run:
 
-## 7. Generator defaults
+```powershell
+python -m pip install -e ".[api]"
+dicojev-api --config configs/default.yaml --host 127.0.0.1 --port 8080
+```
 
-The local candidate generator is:
+The service is bound to localhost by default. The default threshold controller is immediately
+constructible; adaptive compute requires an explicitly fitted policy supplied by application code.
+
+## 7. Generator choices
+
+The v5 local default is the separately downloaded LLaDA-V checkpoint. The earlier local
+DiffusionGemma comparison uses:
 
 ```text
 google/diffusiongemma-26B-A4B-it
 ```
 
-The hosted text profile uses Inception Mercury through its OpenAI-compatible API. The local model
-supports image-text input but is slow on the measured CPU setup. Unit tests remain independent of
-both paths.
+The hosted text profile uses Inception Mercury through its OpenAI-compatible API. Both local DLM
+paths support image-text input but are slow on the measured CPU setup. Unit tests remain independent
+of all real model paths.
 
 Model page:
 
@@ -159,10 +171,11 @@ Regardless of backend:
 5. controller returns meta-action + typed FeedbackBundle
 6. FeedbackCompiler builds LoopContext
 7. if EXPAND, return to step 2 with compiled feedback and prior candidates
-8. if ACT, caller executes the semantic action
+8. if ACT, `AgentRuntime` crosses the execution boundary only when an allowlisted executor is attached
 ```
 
-The decision system does not silently execute tools unless the caller has explicitly connected an execution layer.
+Without an executor, `ACT` is returned with execution status `not_requested`. Unknown tools are
+rejected; arbitrary generated command strings are never executed.
 
 For the real model-serving plan, see `docs/usage/MODEL_RUNTIME.md`.
 
@@ -181,6 +194,5 @@ For the real model-serving plan, see `docs/usage/MODEL_RUNTIME.md`.
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -e ".[dev]"
-Copy-Item .env.example .env
 pytest
 ```

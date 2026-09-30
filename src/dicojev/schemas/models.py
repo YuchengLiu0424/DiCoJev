@@ -247,6 +247,21 @@ class TelemetryEvent(StrictModel):
     image_count: int = Field(default=0, ge=0)
 
 
+class ActionExecution(StrictModel):
+    candidate_id: str
+    tool: str | None = None
+    status: Literal["executed", "rejected", "failed", "not_requested"]
+    result: dict[str, Any] = Field(default_factory=dict)
+    error_code: str | None = None
+    latency_ms: float = Field(default=0, ge=0)
+
+
+class EnvironmentTransition(StrictModel):
+    action: ActionExecution
+    state_before: dict[str, Any] = Field(default_factory=dict)
+    state_after: dict[str, Any] = Field(default_factory=dict)
+
+
 class DecisionResponse(StrictModel):
     action: MetaAction
     selected_candidate: Candidate | None = None
@@ -258,6 +273,7 @@ class DecisionResponse(StrictModel):
     total_latency_ms: float = Field(default=0, ge=0)
     total_compute_units: float = Field(default=0, ge=0)
     escalation_result: EscalationResult | None = None
+    execution_trace: tuple[EnvironmentTransition, ...] = ()
 
 
 class EscalationRequest(StrictModel):
