@@ -2,9 +2,10 @@
 
 **DiCoJev** is a local-first research framework for **coverage-aware Jev-style decision making over diffusion-generated action sets**.
 
-Current implementation: **v5 / 1.0.0 release candidate**. It is a research runtime for agents that
-must choose from an action set they generated themselves. The offline release path needs no model,
-network access, or API key; real model and hosted-backend checks are explicitly opt-in.
+Current implementation: **1.1.0**. The published 1.0.0 release is extended
+with a native desktop interface, direct Python client, and experimental local media intake. The
+offline path needs no model, network access, or API key; real model and hosted-backend checks are
+explicitly opt-in.
 
 It targets fast multimodal agents whose valid next action is not known in advance. A diffusion language model (DLM) proposes candidate actions; a structured decision backend evaluates both **whether the candidate set is adequate** and **which candidate is best**; a typed low-bandwidth feedback loop then decides whether to act, expand the action set, abstain, or escalate.
 
@@ -111,8 +112,76 @@ python -m pytest
 ```
 
 The demo returns an `ACT` response whose `execution_trace` records an allowlisted `record` tool
-changing `approved` from `false` to `true`. The suite currently has **117 passing tests** and six
+changing `approved` from `false` to `true`. The suite currently has **128 passing tests** and six
 skipped opt-in service tests.
+
+## Native desktop interface
+
+Install the project and open the non-browser Decision Studio:
+
+```powershell
+python -m pip install -e "."
+dicojev-gui
+```
+
+The GUI calls the Python runtime directly—there is no FastAPI/JSON hop. It accepts context, goal,
+tools, constraints, structured state, and attachments, then displays the controller action,
+selected candidate, coverage, confidence, feedback, candidates, and trace. The configured LLaDA-V
+model service must still be running for real inference.
+
+You can also paste only an unstructured situation and choose **Understand for me** (or leave Goal
+blank and choose **Make decision**). The configured DLM drafts the goal, instruction, constraints,
+assumptions, and possible tools for review. Proposed tools are never silently granted permission.
+Multiple chats and bounded recent history are kept in a private local SQLite database. Choose
+**Open data folder** to inspect it; launch with `--account NAME` for another local profile or
+`--data-dir PATH` to choose its location.
+
+For a convenient Windows desktop launcher after installation:
+
+```powershell
+.\scripts\install_windows_shortcut.ps1
+```
+
+On Windows the desktop enables per-monitor-v2 DPI awareness before creating the window, uses
+monitor-calibrated text scaling, and provides example placeholders that clear when each field is
+used. Its diffusion-to-decision diamond mark is installed as the window/taskbar icon at multiple
+resolutions.
+
+Images and plain-text/code/data files work with the base installation. Experimental PDF, DOCX,
+speech, and video intake use optional local preprocessors:
+
+```powershell
+python -m pip install -e ".[media]"
+```
+
+Speech is transcribed locally with faster-whisper. Video is sampled into image frames and its audio
+is transcribed. The first speech run may download the configured Whisper checkpoint; set
+`DICOJEV_WHISPER_MODEL` to choose another local model identifier. Files are converted into the
+text-and-image state supported by the current LLaDA-V runtime and never silently ignored.
+
+Test attachment preprocessing independently of the model:
+
+```powershell
+python scripts\media_intake_smoke.py recording.wav notes.pdf clip.mp4 --speech-model tiny
+```
+
+For direct use inside another Python program:
+
+```python
+from dicojev import DecisionRequest, DirectClient
+from dicojev.cli import PACKAGED_DEFAULT_CONFIG
+from dicojev.schemas import MultimodalState
+
+client = DirectClient.from_config(PACKAGED_DEFAULT_CONFIG)
+response = client.decide_sync(
+    DecisionRequest(
+        state=MultimodalState(text="The customer reports two charges."),
+        goal="Choose the safest next action",
+        available_tools=("inspect_transactions", "escalate_to_human"),
+    )
+)
+print(response.action, response.selected_candidate)
+```
 
 The optional API extra exposes the same runtime at `POST /v1/decide` and returns the full typed
 feedback and execution trace. To run the real v5 path, start the separately installed LLaDA-V

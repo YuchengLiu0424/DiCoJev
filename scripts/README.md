@@ -90,3 +90,7 @@ if that service is unavailable.
 
 `check_doc_ownership.py` validates that every Markdown target in the authoritative documentation
 map exists. It is a release gate for documentation ownership consistency.
+
+`media_intake_smoke.py` exercises the desktop/direct-client attachment preprocessing without
+starting the decision model. Base installs support images and bounded text/data/code files;
+`.[media]` adds PDF, DOCX, faster-whisper speech transcription, and sampled video frames/audio.

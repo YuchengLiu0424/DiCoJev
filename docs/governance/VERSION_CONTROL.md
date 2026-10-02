@@ -258,6 +258,25 @@ The final v5 CPU-host acceptance records the GPU-memory gate as unavailable with
 reason. This closes the software release without converting missing accelerator evidence into a
 performance claim.
 
+---
+
+# 1.1.0 — Native Usability Interface
+
+**Package target:** `1.1.0`
+
+**Branch:** `codex/native-gui`
+
+**Tag:** `1.1.0`
+
+This backward-compatible usability release adds a native desktop Decision Studio, direct in-process
+Python client, and bounded attachment preprocessing. It does not change the v5 decision semantics
+or add a new model-quality claim. Internally, it follows the v5 research milestone. Raw speech and video are locally converted into transcript text
+and sampled images because the current LLaDA-V runtime remains text-and-image native.
+
+Acceptance requires the GUI to construct on Windows, direct calls to bypass the public HTTP API,
+unsupported media to fail visibly, optional media dependencies to remain outside the base install,
+and the full offline suite and package build to pass.
+
 ## 4. Release PR checklist
 
 Every milestone PR confirms:

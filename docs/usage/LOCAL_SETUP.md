@@ -142,6 +142,18 @@ dicojev-api --config configs/default.yaml --host 127.0.0.1 --port 8080
 The service is bound to localhost by default. The default threshold controller is immediately
 constructible; adaptive compute requires an explicitly fitted policy supplied by application code.
 
+### Native GUI and direct embedding
+
+`dicojev-gui` opens the native Decision Studio and invokes `DirectClient` in-process; it does not
+call the FastAPI endpoint. Other Python applications can use the same `DirectClient.from_config()`
+entry point with typed `DecisionRequest` objects. The underlying LLaDA adapter still communicates
+with the separately loaded model runtime configured on port 8002.
+
+The GUI accepts multiple local attachments. Text/data/code files are added as bounded context and
+images remain native. Install `.[media]` to enable local PDF, DOCX, faster-whisper speech
+transcription, and video frame/audio extraction. This is preprocessing into the runtime's supported
+text-and-image modalities, not a claim that LLaDA-V consumes raw audio or video tensors.
+
 ## 7. Generator choices
 
 The v5 local default is the separately downloaded LLaDA-V checkpoint. The earlier local
