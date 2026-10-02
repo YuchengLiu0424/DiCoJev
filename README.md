@@ -2,7 +2,7 @@
 
 **DiCoJev** is a local-first research framework for **coverage-aware Jev-style decision making over diffusion-generated action sets**.
 
-Current implementation: **1.1.0**. The published 1.0.0 release is extended
+Current implementation: **1.2.0**. The published 1.0.0 research release is extended
 with a native desktop interface, direct Python client, and experimental local media intake. The
 offline path needs no model, network access, or API key; real model and hosted-backend checks are
 explicitly opt-in.
@@ -112,7 +112,7 @@ python -m pytest
 ```
 
 The demo returns an `ACT` response whose `execution_trace` records an allowlisted `record` tool
-changing `approved` from `false` to `true`. The suite currently has **128 passing tests** and six
+changing `approved` from `false` to `true`. The suite currently has **137 passing tests** and six
 skipped opt-in service tests.
 
 ## Native desktop interface
@@ -132,15 +132,37 @@ model service must still be running for real inference.
 You can also paste only an unstructured situation and choose **Understand for me** (or leave Goal
 blank and choose **Make decision**). The configured DLM drafts the goal, instruction, constraints,
 assumptions, and possible tools for review. Proposed tools are never silently granted permission.
+If that model service is offline, the GUI creates an explicitly labeled low-confidence local draft
+for review instead of failing; an actual model-backed decision still requires a running service.
+Unambiguous arithmetic such as `calculate 1+3` takes a restricted deterministic calculator route
+and returns `4` without invoking the model or decision loop. Infrastructure failures are displayed
+as **UNAVAILABLE**, not as evidence-based `ESCALATE` decisions.
 Multiple chats and bounded recent history are kept in a private local SQLite database. Choose
 **Open data folder** to inspect it; launch with `--account NAME` for another local profile or
 `--data-dir PATH` to choose its location.
+
+The sidebar creates numbered chats (`Chat 1`, `Chat 2`, …), supports rename and confirmed deletion,
+while the rightmost conversation column shows structured user requests right-aligned and DiCoJev
+coverage/adequacy, option scores, and choices left-aligned. **Settings** stores a separate API key for
+the configured model using Windows DPAPI—no environment variable is required by the desktop—and
+reports provider-supplied input, output, and total tokens grouped by model and chat. A zero means
+the model server did not report token counts; DiCoJev does not invent them.
+
+Projects bind a chat to an explicitly selected local folder. The project browser can add selected
+files to the multimodal request, and the public `ProjectWorkspace` API provides path-confined,
+read-only access by default. `ProjectAgentTools` supplies allowlist-ready list/read/write handlers,
+and `ComputerUseAdapter` defines the boundary for an explicitly installed desktop provider. This
+is not unrestricted computer control: writes require explicit opt-in, shell execution is not
+exposed, and desktop automation is not silently enabled.
 
 For a convenient Windows desktop launcher after installation:
 
 ```powershell
 .\scripts\install_windows_shortcut.ps1
 ```
+
+This places the user-facing launcher at `DiCoJev App\DiCoJev.exe` and points the desktop shortcut
+there. The managed `.venv` remains the runtime behind the launcher and should not be deleted.
 
 On Windows the desktop enables per-monitor-v2 DPI awareness before creating the window, uses
 monitor-calibrated text scaling, and provides example placeholders that clear when each field is

@@ -277,6 +277,25 @@ Acceptance requires the GUI to construct on Windows, direct calls to bypass the 
 unsupported media to fail visibly, optional media dependencies to remain outside the base install,
 and the full offline suite and package build to pass.
 
+---
+
+# 1.2.0 — Settings and Agent Workspace Foundation
+
+**Package target:** `1.2.0`
+
+**Branch:** `codex/settings-agent-workspaces`
+
+**Tag:** `1.2.0`
+
+This user-end release adds DPAPI-protected per-model credentials, provider-reported token usage by
+model and chat, full local chat management and history, and persistent project folders with
+path-confined file access. Project access is read-only by default. Arbitrary shell commands,
+unbounded filesystem access, and desktop automation are explicitly outside this release.
+
+Acceptance requires migration of existing local databases, credentials that never appear as
+plaintext on disk, accurate non-invented token accounting, confirmed chat deletion, containment of
+project paths, native Settings-window construction, and all offline quality gates.
+
 ## 4. Release PR checklist
 
 Every milestone PR confirms:

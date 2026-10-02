@@ -33,6 +33,32 @@ class IntentDraft(BaseModel):
         return value.strip()
 
 
+def fallback_intent_draft(context: str) -> IntentDraft:
+    """Create a conservative review-only draft when no configured DLM is reachable."""
+    normalized = " ".join(context.split()).strip()
+    if not normalized:
+        raise ValueError("Context is required before intent can be inferred.")
+    first = re.split(r"(?<=[.!?])\s+", normalized, maxsplit=1)[0][:180]
+    question = next((part.strip() for part in normalized.split("?") if part.strip()), first)
+    goal = f"Determine the safest next action for: {question[:150].rstrip('.!?')}"
+    return IntentDraft(
+        goal=goal,
+        instruction=(
+            "Review the supplied context, identify the decision being requested, and compare "
+            "safe next actions before choosing one."
+        ),
+        assumptions=(
+            (
+                "The configured DLM was unavailable, so this low-confidence draft was created "
+                "locally and requires user review."
+            ),
+        ),
+        confidence=0.25,
+        needs_clarification=True,
+        clarifying_question="Does the drafted goal correctly describe the outcome you want?",
+    )
+
+
 class DLMIntentInferer:
     """Ask an OpenAI-compatible DLM to structure context without taking action."""
 
@@ -50,6 +76,7 @@ class DLMIntentInferer:
         self.timeout_seconds = timeout_seconds
         self.transport = transport
         self.api_key = api_key
+        self.last_usage: dict[str, int | float] = {}
 
     def _path(self) -> str:
         return "/chat/completions" if self.base_url.endswith("/v1") else "/v1/chat/completions"
@@ -103,6 +130,10 @@ class DLMIntentInferer:
                 )
                 response.raise_for_status()
                 payload = response.json()
+                usage = payload.get("usage", {}) if isinstance(payload, dict) else {}
+                self.last_usage = {
+                    key: value for key, value in usage.items() if isinstance(value, int | float)
+                }
                 content = payload["choices"][0]["message"]["content"]
                 if not isinstance(content, str):
                     raise MalformedProviderResponse("intent response content is not text")

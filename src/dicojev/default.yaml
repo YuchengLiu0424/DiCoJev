@@ -1,8 +1,8 @@
 project:
   name: dicojev
-  release_version: 1.1.0
+  release_version: 1.2.0
   research_milestone: v5.1
-  package_version: 1.1.0
+  package_version: 1.2.0
   environment: local
 
 model:

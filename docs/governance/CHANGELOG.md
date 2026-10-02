@@ -2,6 +2,26 @@
 
 ## Unreleased
 
+### 1.2.0
+
+- Added a restricted deterministic arithmetic route so simple calculations bypass candidate
+  generation and return direct answers without requiring a model service.
+- Separated component outages from epistemic escalation in the GUI: model failures now display as
+  `UNAVAILABLE`, while `ESCALATE` remains a decision-loop outcome.
+- Made context-only drafting fail soft when the configured DLM is offline, with a clearly labeled
+  low-confidence local draft that still requires review.
+- Moved the active-chat transcript to the rightmost column with right-aligned structured requests
+  and left-aligned adequacy, coverage, option-score, and choice results.
+- Reworked every floating field hint into one description line followed by one example line.
+- Added a native Settings window with DPAPI-protected per-model API keys and no desktop dependency
+  on environment variables.
+- Added provider-reported token accounting grouped by model and chat.
+- Added numbered default chat names, rename, confirmed deletion, and an active-chat interaction
+  history column.
+- Added persistent projects, a project file browser, and a path-confined `ProjectWorkspace` API
+  that is read-only unless write access is explicitly granted.
+- Kept arbitrary shell and desktop control disabled pending a separate capability/consent design.
+
 ### 1.1.0
 
 - Added context-only DLM intent drafting with explicit review of inferred goals, constraints,

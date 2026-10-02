@@ -147,7 +147,7 @@ async def test_v1_decide_api_exposes_full_response_trace():
             "/v1/decide",
             json={"state": {"text": "x"}, "goal": "wait"},
         )
-    assert health.json() == {"status": "ok", "version": "1.1.0"}
+    assert health.json() == {"status": "ok", "version": "1.2.0"}
     assert response.status_code == 200
     payload = response.json()
     assert payload["action"] == "ACT"

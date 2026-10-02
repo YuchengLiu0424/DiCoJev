@@ -1,0 +1,34 @@
+project: {release_version: 1.2.0, research_milestone: user-end-agent-foundation}
+model:
+  generator_kind: llada
+  generator_model: llada-v-local
+  multimodal: true
+  deployment: unified_local_runtime
+  base_url: http://127.0.0.1:8002
+  timeout_seconds: 600
+decision_backend: {kind: native_dlm}
+runtime:
+  share_model_weights: true
+  share_multimodal_preprocessing: true
+  reuse_context_when_equivalent: true
+  batch_reads: false
+controller:
+  policy: threshold
+  min_coverage: 0.75
+  min_selection_confidence: 0.70
+feedback: {compiler: typed_low_bandwidth, expose_trace: true}
+interfaces:
+  native_gui: true
+  direct_python: true
+  http_api: true
+  settings: true
+  context_only_intent_drafting: true
+  local_profiles_and_chats: true
+memory:
+  storage: local_sqlite
+  credential_storage: windows_dpapi
+  usage_accounting: provider_reported
+  bounded_history_turns: 8
+agent:
+  project_workspaces: scoped_local_folders
+  arbitrary_computer_control: false

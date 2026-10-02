@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import os
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
@@ -23,6 +22,7 @@ class DirectClient:
     def __init__(self, runtime: Any, intent_inferer: DLMIntentInferer | None = None) -> None:
         self.runtime = runtime
         self.intent_inferer = intent_inferer
+        self.model_name = intent_inferer.model if intent_inferer else "unknown"
 
     @classmethod
     def from_config(
@@ -37,13 +37,53 @@ class DirectClient:
             model=model.get("generator_model", "llada-v-local"),
             timeout_seconds=model.get("timeout_seconds", 600),
             transport=dependencies.get("transport"),
-            api_key=(
-                dependencies.get("api_key")
-                or os.getenv("INCEPTION_API_KEY")
-                or os.getenv("MERCURY_API_KEY")
-            ),
+            api_key=dependencies.get("api_key"),
         )
         return cls(create_agent_runtime(payload, **dependencies), inferer)
+
+    def configure_api_key(self, value: str | None) -> None:
+        """Apply a user-provided key to compatible model clients for this process."""
+        if self.intent_inferer is not None:
+            self.intent_inferer.api_key = value
+        orchestrator = getattr(self.runtime, "orchestrator", None)
+        generator = getattr(orchestrator, "generator", None)
+        nested = getattr(generator, "generator", None)
+        for target in (generator, nested):
+            if target is not None and hasattr(target, "api_key"):
+                target.api_key = value
+
+    def usage_snapshot(self) -> dict[str, int | float]:
+        orchestrator = getattr(self.runtime, "orchestrator", None)
+        generator = getattr(orchestrator, "generator", None)
+        diagnostics = getattr(generator, "diagnostics", {})
+        if isinstance(diagnostics, dict):
+            totals = {"prompt_tokens": 0, "completion_tokens": 0}
+            aliases = {
+                "prompt_tokens": "prompt_tokens",
+                "input_tokens": "prompt_tokens",
+                "completion_tokens": "completion_tokens",
+                "output_tokens": "completion_tokens",
+            }
+
+            def collect(value: Any) -> None:
+                if isinstance(value, dict):
+                    for key, item in value.items():
+                        target = aliases.get(key)
+                        if target and isinstance(item, int | float):
+                            totals[target] += item
+                        elif isinstance(item, dict | list | tuple):
+                            collect(item)
+                elif isinstance(value, list | tuple):
+                    for item in value:
+                        collect(item)
+
+            collect(diagnostics)
+            return {
+                **totals,
+                "total_tokens": totals["prompt_tokens"] + totals["completion_tokens"],
+            }
+        usage = getattr(generator, "last_usage", {})
+        return dict(usage) if isinstance(usage, dict) else {}
 
     async def decide(self, request: DecisionRequest) -> DecisionResponse:
         return await self.runtime.decide(request)

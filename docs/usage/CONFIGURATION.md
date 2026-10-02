@@ -22,11 +22,13 @@ model:
   max_candidates: 8
 ```
 
-`generator_kind` may be `fake`, `llada`, `mercury`, or `diffusiongemma`. LLaDA-V is the v5
-default and shares its endpoint with the native decision backend. Mercury reads
-`INCEPTION_API_KEY`, defaults to `https://api.inceptionlabs.ai/v1` and `mercury-2.5`, and declares
-text-only capability. DiffusionGemma uses the configured local OpenAI-compatible endpoint and
-declares native image capability.
+`generator_kind` may be `fake`, `llada`, `mercury`, or `diffusiongemma`. LLaDA-V is the primary
+default and shares its endpoint with the native decision backend. The desktop stores a distinct
+API key for the active model through **Settings**; headless legacy construction may still pass a
+key explicitly or use `INCEPTION_API_KEY`. Mercury defaults to
+`https://api.inceptionlabs.ai/v1` and `mercury-2.5` and declares text-only capability.
+DiffusionGemma uses the configured local OpenAI-compatible endpoint and declares native image
+capability.
 
 ## `decision_backend`
 
