@@ -1,4 +1,4 @@
-"""Optional FastAPI surface for the stable v5 decision endpoint."""
+"""Optional FastAPI surface for the stable 1.x decision endpoint."""
 
 from __future__ import annotations
 
@@ -13,11 +13,11 @@ def create_app(runtime: Any):
     except ImportError as error:  # pragma: no cover - depends on optional install
         raise RuntimeError('install dicojev with the "api" extra') from error
 
-    app = FastAPI(title="DiCoJev", version="1.0.0")
+    app = FastAPI(title="DiCoJev", version="1.1.0")
 
     @app.get("/health")
     async def health() -> dict[str, str]:
-        return {"status": "ok", "milestone": "v5"}
+        return {"status": "ok", "version": "1.1.0"}
 
     @app.post("/v1/decide", response_model=DecisionResponse)
     async def decide(request: DecisionRequest) -> DecisionResponse:

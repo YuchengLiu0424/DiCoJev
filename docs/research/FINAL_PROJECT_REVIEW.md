@@ -1,4 +1,4 @@
-# Final Project Review — v5 / 1.0.0
+# Final Project Review — 1.0.0 (research milestone v5)
 
 Review date: 2026-09-30
 

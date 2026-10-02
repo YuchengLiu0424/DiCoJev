@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+### 1.1.0
+
+- Added context-only DLM intent drafting with explicit review of inferred goals, constraints,
+  assumptions, and proposed tools.
+- Added private local SQLite profiles, multiple chats, bounded recent-history recall, a reserved
+  explicit-memory schema, and an in-app data-folder shortcut.
+- Added a Windows desktop-shortcut installer for the native Decision Studio.
+- Added a native dark desktop Decision Studio and `dicojev-gui` entry point using the direct
+  in-process Python runtime rather than the FastAPI surface.
+- Added Windows per-monitor-v2 DPI rendering, monitor-calibrated Tk scaling, example placeholders,
+  and a multi-resolution diffusion-to-structured-decision application mark.
+- Added `DirectClient` for typed embedding in other Python programs without public HTTP transport.
+- Added bounded local attachment preprocessing for images, text/data/code files, and optional
+  PDF, DOCX, speech transcription, and sampled video frames/audio.
+
 - Implemented the v5 unified LLaDA runtime facade so generation and native structured reads share
   one configured model-server process and diagnostics surface.
 - Added the stable optional `POST /v1/decide` API, explicit allowlisted tool boundary, and
