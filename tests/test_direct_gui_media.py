@@ -183,6 +183,133 @@ def test_local_memory_separates_chats_and_bounds_history(tmp_path):
     assert store.latest_turn(first, "user")["goal"] == "A"
 
 
+def test_projects_own_chats_and_model_assignments_persist(tmp_path):
+    store = LocalMemoryStore(tmp_path)
+    first = store.create_project("local", "First")
+    second = store.create_project("local", "Second")
+    chat = store.create_chat("local", project_id=first)
+    other = store.create_chat("local", project_id=second)
+    assert [item.id for item in store.list_chats("local", first)] == [chat]
+    assert [item.id for item in store.list_chats("local", second)] == [other]
+    defaults = store.get_chat_models(chat)
+    models = {item.id: item for item in store.list_models("local")}
+    assert models[defaults.language_model_id].adapter == "diffusiongemma"
+    assert models[defaults.decision_model_id].adapter == "laya_local"
+    added = store.add_model(
+        "local",
+        name="My LLM",
+        role="language",
+        deployment="local",
+        adapter="openai_compatible",
+        location="http://127.0.0.1:9000",
+        model_identifier="my-model",
+    )
+    store.set_chat_models(chat, added, defaults.decision_model_id)
+    reopened = LocalMemoryStore(tmp_path)
+    assert reopened.get_chat_models(chat).language_model_id == added
+    assert (
+        next(item for item in reopened.list_models("local") if item.id == added).model_identifier
+        == "my-model"
+    )
+    with pytest.raises(ValueError, match="role"):
+        store.set_chat_models(chat, defaults.decision_model_id, defaults.language_model_id)
+    store.rename_project(first, "Renamed")
+    store.delete_project(first)
+    assert not store.list_turns(chat)
+    assert [item.id for item in store.list_chats("local")] == [other]
+
+
+def test_separate_model_runtime_uses_explicit_keys_without_environment(monkeypatch):
+    monkeypatch.setenv("MERCURY_API_KEY", "unwanted-environment-key")
+    monkeypatch.setenv("JEV_API_KEY", "unwanted-environment-key")
+    config = {
+        "model": {
+            "deployment": "separate_models",
+            "generator_kind": "mercury",
+            "generator_model": "mercury-2.5",
+            "base_url": "https://language.test/v1",
+        },
+        "decision_backend": {
+            "kind": "jev_cloud",
+            "model": "jev-latest",
+            "base_url": "https://decision.test",
+        },
+    }
+    client = DirectClient.from_config(
+        config,
+        generator_api_key="language-key",
+        decision_api_key="decision-key",
+        use_environment=False,
+    )
+    assert client.runtime.orchestrator.generator.api_key == "language-key"
+    assert client.runtime.orchestrator.backend.api_key == "decision-key"
+    empty = DirectClient.from_config(config, use_environment=False)
+    assert empty.runtime.orchestrator.generator.api_key is None
+    assert empty.runtime.orchestrator.backend.api_key is None
+
+
+@pytest.mark.asyncio
+async def test_local_diffusiongemma_and_laya_execute_as_separate_models():
+    calls = []
+
+    def handler(request):
+        calls.append((request.url.host, request.url.port, request.url.path))
+        if request.url.path == "/v1/chat/completions":
+            return httpx.Response(
+                200,
+                json={
+                    "choices": [
+                        {"message": {"content": '{"candidates":[{"action":"Inspect the report"}]}'}}
+                    ],
+                    "usage": {"prompt_tokens": 12, "completion_tokens": 5},
+                },
+            )
+        return httpx.Response(
+            200,
+            json={
+                "result": {
+                    "answers": {
+                        "coverage": {"type": "noul", "noul": 0.95},
+                        "selection": {
+                            "type": "choice",
+                            "choice": "A",
+                            "confidence": 0.9,
+                            "probabilities": {"A": 0.9, "N": 0.1},
+                        },
+                    },
+                    "usage": {"prompt_tokens": 8, "completion_tokens": 1},
+                }
+            },
+        )
+
+    client = DirectClient.from_config(
+        {
+            "model": {
+                "deployment": "separate_models",
+                "generator_kind": "diffusiongemma",
+                "base_url": "http://127.0.0.1:11434",
+                "generator_model": "dicojev-diffusiongemma",
+            },
+            "decision_backend": {
+                "kind": "laya_local",
+                "base_url": "http://127.0.0.1:8000",
+                "model": "english",
+            },
+        },
+        transport=httpx.MockTransport(handler),
+    )
+    response = await client.decide(
+        DecisionRequest(
+            state=MultimodalState(text="A report arrived"), goal="Choose the next action"
+        )
+    )
+    assert response.action == MetaAction.ACT
+    assert calls == [
+        ("127.0.0.1", 11434, "/v1/chat/completions"),
+        ("127.0.0.1", 8000, "/v1/systemone"),
+    ]
+
+
 def test_local_memory_reserves_explicit_long_term_memory_table(tmp_path):
     store = LocalMemoryStore(tmp_path / "profile")
     chat = store.create_chat("local")

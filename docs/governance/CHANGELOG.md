@@ -13,7 +13,11 @@
 - Moved the active-chat transcript to the rightmost column with right-aligned structured requests
   and left-aligned adequacy, coverage, option-score, and choice results.
 - Reworked every floating field hint into one description line followed by one example line.
-- Added a native Settings window with DPAPI-protected per-model API keys and no desktop dependency
+- Added Workspace and Settings scenes inside one native window, with DPAPI-protected model keys.
+- Added a model registry and independent language/decision model assignments for each project chat.
+- Defaulted new chats to local DiffusionGemma and local Laya; retained unified LLaDA as a research configuration.
+- Added rounded, padded project/chat navigation with right-click rename and deletion.
+- Removed desktop dependence
   on environment variables.
 - Added provider-reported token accounting grouped by model and chat.
 - Added numbered default chat names, rename, confirmed deletion, and an active-chat interaction

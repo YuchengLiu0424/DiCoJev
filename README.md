@@ -65,8 +65,11 @@ The project does **not** claim that candidate generation, generate-then-rank, NO
 
 ## Default model and deployment philosophy
 
-The v5 default is the unified local **LLaDA-V** adapter on port 8002. One loaded model service
-handles multimodal candidate generation and native structured reads. The default controller is the
+The desktop defaults to **DiffusionGemma Local + Laya Local**, independently selected for each
+chat. DiffusionGemma uses the installed Ollama model `dicojev-diffusiongemma` on port 11434;
+Laya uses its local System One server on port 8000. Register or edit endpoints in Settings.
+The research configuration `configs/versions/v5.yaml` retains the unified LLaDA-V path on
+port 8002. The default controller is the
 deterministic threshold policy; the learned adaptive policy remains an explicit experiment because
 the live v4 study did not show it outperforming fixed policies.
 
@@ -112,7 +115,7 @@ python -m pytest
 ```
 
 The demo returns an `ACT` response whose `execution_trace` records an allowlisted `record` tool
-changing `approved` from `false` to `true`. The suite currently has **137 passing tests** and six
+changing `approved` from `false` to `true`. The suite currently has **140 passing tests** and six
 skipped opt-in service tests.
 
 ## Native desktop interface
@@ -126,8 +129,8 @@ dicojev-gui
 
 The GUI calls the Python runtime directly—there is no FastAPI/JSON hop. It accepts context, goal,
 tools, constraints, structured state, and attachments, then displays the controller action,
-selected candidate, coverage, confidence, feedback, candidates, and trace. The configured LLaDA-V
-model service must still be running for real inference.
+selected candidate, coverage, confidence, feedback, candidates, and trace. The selected language
+and decision model services must be running for real inference.
 
 You can also paste only an unstructured situation and choose **Understand for me** (or leave Goal
 blank and choose **Make decision**). The configured DLM drafts the goal, instruction, constraints,
@@ -141,14 +144,20 @@ Multiple chats and bounded recent history are kept in a private local SQLite dat
 **Open data folder** to inspect it; launch with `--account NAME` for another local profile or
 `--data-dir PATH` to choose its location.
 
-The sidebar creates numbered chats (`Chat 1`, `Chat 2`, …), supports rename and confirmed deletion,
-while the rightmost conversation column shows structured user requests right-aligned and DiCoJev
-coverage/adequacy, option scores, and choices left-aligned. **Settings** stores a separate API key for
-the configured model using Windows DPAPI—no environment variable is required by the desktop—and
+The sidebar groups chats under projects. Use ＋ to create projects or numbered chats
+(`Chat 1`, `Chat 2`, …); right-click a rounded navigation item to rename or delete it.
+Project deletion removes its chats and leaves the folder's files untouched.
+The rightmost conversation column shows structured user requests right-aligned and DiCoJev
+coverage/adequacy, option scores, and choices left-aligned. **Settings** opens inside the same window.
+Its Model registry tab adds models by name, role (language/decision), deployment (local/online),
+adapter, endpoint, and optional provider model identifier. Right-click a registered model to edit
+its details or credentials. The Project chats tab sets each chat's name and independent language
+and decision models using only registered choices. Local models use a running loopback server URL;
+weights are loaded by that server. Settings stores per-model keys using Windows DPAPI and
 reports provider-supplied input, output, and total tokens grouped by model and chat. A zero means
 the model server did not report token counts; DiCoJev does not invent them.
 
-Projects bind a chat to an explicitly selected local folder. The project browser can add selected
+Projects optionally bind chats to a selected local folder. The project browser can add selected
 files to the multimodal request, and the public `ProjectWorkspace` API provides path-confined,
 read-only access by default. `ProjectAgentTools` supplies allowlist-ready list/read/write handlers,
 and `ComputerUseAdapter` defines the boundary for an explicitly installed desktop provider. This
@@ -179,7 +188,8 @@ python -m pip install -e ".[media]"
 Speech is transcribed locally with faster-whisper. Video is sampled into image frames and its audio
 is transcribed. The first speech run may download the configured Whisper checkpoint; set
 `DICOJEV_WHISPER_MODEL` to choose another local model identifier. Files are converted into the
-text-and-image state supported by the current LLaDA-V runtime and never silently ignored.
+text-and-image state supported by the selected model and never silently ignored. Laya currently
+declares text-only input; image-bearing requests require a decision backend that declares image support.
 
 Test attachment preprocessing independently of the model:
 
@@ -217,7 +227,7 @@ service, validate generation and native reads, then start the API:
 
 .\.venv\Scripts\python.exe scripts\runtime_smoke.py --generator llada --timeout 600
 .\.venv\Scripts\python.exe scripts\native_read_smoke.py --base-url http://127.0.0.1:8002
-dicojev-api --config configs/default.yaml --host 127.0.0.1 --port 8080
+dicojev-api --config configs/versions/v5.yaml --host 127.0.0.1 --port 8080
 ```
 
 Model weights and the official LLaDA-V source are not bundled. On the measured CPU setup, local

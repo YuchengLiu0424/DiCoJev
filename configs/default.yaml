@@ -6,18 +6,17 @@ project:
   environment: local
 
 model:
-  generator_kind: llada
-  generator_model: llada-v-local
-  deployment: unified_local_runtime
-  base_url: http://127.0.0.1:8002
+  generator_kind: diffusiongemma
+  generator_model: dicojev-diffusiongemma
+  deployment: separate_models
+  base_url: http://127.0.0.1:11434
   timeout_seconds: 600
   max_candidates: 8
 
 decision_backend:
-  kind: native_dlm
-  runtime_kind: unified_llada
-  base_url: http://127.0.0.1:8002
-  model: llada-v-local
+  kind: laya_local
+  base_url: http://127.0.0.1:8000
+  model: english
   timeout_seconds: 600
 
 controller:

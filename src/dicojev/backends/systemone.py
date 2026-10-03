@@ -182,9 +182,10 @@ class JevCloudBackend(_SystemOneBackend):
         model: str = "jev-latest",
         timeout_seconds: float = 30,
         transport: httpx.AsyncBaseTransport | None = None,
+        use_environment: bool = True,
     ) -> None:
-        key = api_key or os.getenv("JEV_API_KEY")
-        if not key:
+        key = api_key or (os.getenv("JEV_API_KEY") if use_environment else None)
+        if not key and use_environment:
             raise ConfigurationError("JEV_API_KEY is required for jev_cloud")
         super().__init__(
             base_url=base_url,

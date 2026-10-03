@@ -1,12 +1,12 @@
 project: {release_version: 1.2.0, research_milestone: user-end-agent-foundation}
 model:
-  generator_kind: llada
-  generator_model: llada-v-local
+  generator_kind: diffusiongemma
+  generator_model: dicojev-diffusiongemma
   multimodal: true
-  deployment: unified_local_runtime
-  base_url: http://127.0.0.1:8002
+  deployment: separate_models
+  base_url: http://127.0.0.1:11434
   timeout_seconds: 600
-decision_backend: {kind: native_dlm}
+decision_backend: {kind: laya_local, base_url: http://127.0.0.1:8000, model: english}
 runtime:
   share_model_weights: true
   share_multimodal_preprocessing: true

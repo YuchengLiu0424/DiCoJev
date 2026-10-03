@@ -23,6 +23,7 @@ class DirectClient:
         self.runtime = runtime
         self.intent_inferer = intent_inferer
         self.model_name = intent_inferer.model if intent_inferer else "unknown"
+        self.decision_model_name = "unknown"
 
     @classmethod
     def from_config(
@@ -37,9 +38,13 @@ class DirectClient:
             model=model.get("generator_model", "llada-v-local"),
             timeout_seconds=model.get("timeout_seconds", 600),
             transport=dependencies.get("transport"),
-            api_key=dependencies.get("api_key"),
+            api_key=dependencies.get("generator_api_key", dependencies.get("api_key")),
         )
-        return cls(create_agent_runtime(payload, **dependencies), inferer)
+        client = cls(create_agent_runtime(payload, **dependencies), inferer)
+        client.decision_model_name = payload.get("decision_backend", {}).get(
+            "model", payload.get("decision_backend", {}).get("kind", "unknown")
+        )
+        return client
 
     def configure_api_key(self, value: str | None) -> None:
         """Apply a user-provided key to compatible model clients for this process."""
@@ -52,10 +57,17 @@ class DirectClient:
             if target is not None and hasattr(target, "api_key"):
                 target.api_key = value
 
+    def configure_api_keys(self, language_key: str | None, decision_key: str | None) -> None:
+        self.configure_api_key(language_key)
+        orchestrator = getattr(self.runtime, "orchestrator", None)
+        backend = getattr(orchestrator, "backend", None)
+        if backend is not None and hasattr(backend, "api_key"):
+            backend.api_key = decision_key
+
     def usage_snapshot(self) -> dict[str, int | float]:
         orchestrator = getattr(self.runtime, "orchestrator", None)
         generator = getattr(orchestrator, "generator", None)
-        diagnostics = getattr(generator, "diagnostics", {})
+        diagnostics = getattr(generator, "diagnostics", None)
         if isinstance(diagnostics, dict):
             totals = {"prompt_tokens": 0, "completion_tokens": 0}
             aliases = {

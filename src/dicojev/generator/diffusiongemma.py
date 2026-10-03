@@ -326,13 +326,16 @@ class MercuryGenerator(OpenAICompatibleCandidateGenerator):
         model: str = "mercury-2.5",
         timeout_seconds: float = 60,
         transport: httpx.AsyncBaseTransport | None = None,
+        use_environment: bool = True,
     ) -> None:
-        key = api_key or os.getenv("INCEPTION_API_KEY") or os.getenv("MERCURY_API_KEY")
-        if not key:
+        key = api_key
+        if use_environment:
+            key = key or os.getenv("INCEPTION_API_KEY") or os.getenv("MERCURY_API_KEY")
+        if not key and use_environment:
             raise ConfigurationError("INCEPTION_API_KEY or MERCURY_API_KEY is required for Mercury")
         super().__init__(
-            base_url=os.getenv("INCEPTION_BASE_URL", base_url),
-            model=os.getenv("INCEPTION_MODEL", model),
+            base_url=os.getenv("INCEPTION_BASE_URL", base_url) if use_environment else base_url,
+            model=os.getenv("INCEPTION_MODEL", model) if use_environment else model,
             timeout_seconds=timeout_seconds,
             transport=transport,
             api_key=key,

@@ -14,16 +14,17 @@ project:
 
 ```yaml
 model:
-  generator_kind: llada
-  generator_model: llada-v-local
-  deployment: unified_local_runtime
-  base_url: http://127.0.0.1:8002
+  generator_kind: diffusiongemma
+  generator_model: dicojev-diffusiongemma
+  deployment: separate_models
+  base_url: http://127.0.0.1:11434
   timeout_seconds: 600
   max_candidates: 8
 ```
 
-`generator_kind` may be `fake`, `llada`, `mercury`, or `diffusiongemma`. LLaDA-V is the primary
-default and shares its endpoint with the native decision backend. The desktop stores a distinct
+`generator_kind` may be `fake`, `llada`, `mercury`, `diffusiongemma`, or `openai_compatible`.
+The desktop defaults to separate local DiffusionGemma and Laya services. Unified LLaDA remains
+available through the historical research configuration. The desktop stores a distinct
 API key for the active model through **Settings**; headless legacy construction may still pass a
 key explicitly or use `INCEPTION_API_KEY`. Mercury defaults to
 `https://api.inceptionlabs.ai/v1` and `mercury-2.5` and declares text-only capability.
@@ -34,10 +35,9 @@ capability.
 
 ```yaml
 decision_backend:
-  kind: native_dlm
-  runtime_kind: unified_llada
-  base_url: http://127.0.0.1:8002
-  model: llada-v-local
+  kind: laya_local
+  base_url: http://127.0.0.1:8000
+  model: english
   timeout_seconds: 600
 ```
 
