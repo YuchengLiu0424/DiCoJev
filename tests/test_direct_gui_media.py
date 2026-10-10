@@ -1,4 +1,5 @@
 import asyncio
+import json
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -11,7 +12,7 @@ from dicojev.direct import DirectClient
 from dicojev.gui import build_parser, build_request, present_response, split_items
 from dicojev.intent import DLMIntentInferer, fallback_intent_draft
 from dicojev.memory import LocalMemoryStore
-from dicojev.multimedia import LocalMediaIngestor
+from dicojev.multimedia import LocalMediaIngestor, LocalVisionBridge
 from dicojev.routing import route_direct_answer
 from dicojev.schemas import (
     ControllerDecision,
@@ -125,7 +126,7 @@ def test_context_only_offline_fallback_is_explicit_and_review_only():
     draft = fallback_intent_draft(
         "The customer wrote a long explanation but did not specify the exact action."
     )
-    assert draft.goal.startswith("Determine the safest next action")
+    assert draft.goal.startswith("Clarify the requested outcome")
     assert draft.confidence == 0.25
     assert draft.needs_clarification is True
     assert "DLM was unavailable" in draft.assumptions[0]
@@ -185,16 +186,19 @@ def test_local_memory_separates_chats_and_bounds_history(tmp_path):
 
 def test_projects_own_chats_and_model_assignments_persist(tmp_path):
     store = LocalMemoryStore(tmp_path)
+    unassigned = store.create_chat("local")
     first = store.create_project("local", "First")
     second = store.create_project("local", "Second")
     chat = store.create_chat("local", project_id=first)
     other = store.create_chat("local", project_id=second)
     assert [item.id for item in store.list_chats("local", first)] == [chat]
     assert [item.id for item in store.list_chats("local", second)] == [other]
+    assert [item.id for item in store.list_unassigned_chats("local")] == [unassigned]
     defaults = store.get_chat_models(chat)
     models = {item.id: item for item in store.list_models("local")}
-    assert models[defaults.language_model_id].adapter == "diffusiongemma"
-    assert models[defaults.decision_model_id].adapter == "laya_local"
+    assert models[defaults.language_model_id].name == "LLaDA Local"
+    assert models[defaults.language_model_id].adapter == "llada"
+    assert models[defaults.decision_model_id].adapter == "native_dlm"
     added = store.add_model(
         "local",
         name="My LLM",
@@ -205,6 +209,10 @@ def test_projects_own_chats_and_model_assignments_persist(tmp_path):
         model_identifier="my-model",
     )
     store.set_chat_models(chat, added, defaults.decision_model_id)
+    assert store.get_chat_models(other).language_model_id != added
+    store.set_chat_project(other, None)
+    assert {item.id for item in store.list_unassigned_chats("local")} == {unassigned, other}
+    store.set_chat_project(other, second)
     reopened = LocalMemoryStore(tmp_path)
     assert reopened.get_chat_models(chat).language_model_id == added
     assert (
@@ -216,7 +224,7 @@ def test_projects_own_chats_and_model_assignments_persist(tmp_path):
     store.rename_project(first, "Renamed")
     store.delete_project(first)
     assert not store.list_turns(chat)
-    assert [item.id for item in store.list_chats("local")] == [other]
+    assert {item.id for item in store.list_chats("local")} == {unassigned, other}
 
 
 def test_separate_model_runtime_uses_explicit_keys_without_environment(monkeypatch):
@@ -420,6 +428,38 @@ def test_media_ingestor_rejects_unknown_and_oversized_files(tmp_path):
     large.write_text("12345", encoding="utf-8")
     with pytest.raises(ValueError, match="Attachment exceeds"):
         LocalMediaIngestor(max_file_bytes=4).ingest([str(large)])
+
+
+def test_local_vision_bridge_converts_images_to_provenanced_text():
+    def handler(request):
+        payload = json.loads(request.content)
+        assert payload["model"] == "qwen3.5:9b"
+        assert payload["think"] is False
+        assert len(payload["messages"][0]["images"]) == 1
+        return httpx.Response(200, json={"message": {"content": "A blue dialog shows a warning."}})
+
+    request = DecisionRequest(
+        state=MultimodalState(
+            text="What is shown?",
+            images=(
+                ImageRef(
+                    data=b"\x89PNG\r\n\x1a\nfixture", media_type="image/png", alt_text="dialog"
+                ),
+            ),
+            structured={"attachments": [{"name": "dialog.png", "kind": "image"}]},
+        ),
+        goal="Describe the image",
+    )
+    enriched = LocalVisionBridge(transport=httpx.MockTransport(handler)).enrich_request(request)
+
+    assert "[Local vision analysis · qwen3.5:9b]" in enriched.state.text
+    assert "blue dialog" in enriched.state.text
+    assert enriched.state.images == ()
+    assert enriched.state.structured["vision_bridge"] == {
+        "model": "qwen3.5:9b",
+        "image_count": 1,
+        "mode": "local_image_to_text_for_text_only_pair",
+    }
 
 
 def test_audio_intake_uses_lazy_local_transcriber(tmp_path):

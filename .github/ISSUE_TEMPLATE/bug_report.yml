@@ -1,0 +1,47 @@
+name: Bug report
+description: Report a reproducible DiCoJev defect without private data.
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Do not include API keys, private prompts, user databases, or raw media.
+  - type: input
+    id: version
+    attributes:
+      label: DiCoJev version
+      placeholder: 1.2.0
+    validations:
+      required: true
+  - type: dropdown
+    id: interface
+    attributes:
+      label: Interface
+      options:
+        - Native desktop GUI
+        - Direct Python client
+        - Optional HTTP API
+        - Evaluation or research script
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Describe the expected and actual behavior with sensitive content removed.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction
+      description: Include model roles, adapter names, local/cloud deployment, and relevant commands.
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, Python version, model runtime versions, and whether live services were enabled.
+    validations:
+      required: true

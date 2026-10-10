@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import asyncio
 import copy
 import json
 import os
@@ -17,14 +18,21 @@ from typing import Any
 from .cli import PACKAGED_DEFAULT_CONFIG
 from .config import load_config
 from .direct import DirectClient
-from .errors import GeneratorUnavailable
-from .intent import IntentDraft, fallback_intent_draft
+from .intent import IntentDraft
 from .memory import LocalMemoryStore
-from .multimedia import LocalMediaIngestor
-from .routing import DirectAnswer, route_direct_answer
+from .model_discovery import (
+    ADAPTER_STANDARDS,
+    discover_local_model,
+    validate_cloud_model,
+    validate_model_standard,
+)
+from .multimedia import IMAGE_SUFFIXES, VIDEO_SUFFIXES, LocalMediaIngestor, LocalVisionBridge
+from .routing import DirectAnswer
 from .schemas import DecisionRequest, DecisionResponse, ImageRef, MultimodalState
 from .secrets import SecretStore
 from .workspace import ProjectWorkspace
+
+NO_PROJECT_ID = "__no_project__"
 
 COLORS = {
     "window": "#0d1113",
@@ -77,8 +85,8 @@ class RoundedNavList:
         self._draw()
 
     def _item_at(self, y: int) -> str | None:
-        index = (y - 4) // 40
-        if index < 0 or index >= len(self.items) or (y - 4) % 40 >= 34:
+        index = (y - 5) // 46
+        if index < 0 or index >= len(self.items) or (y - 5) % 46 >= 38:
             return None
         return self.items[index][0]
 
@@ -115,13 +123,13 @@ class RoundedNavList:
         self.canvas.delete("all")
         width = max(80, self.canvas.winfo_width())
         for index, (item_id, label) in enumerate(self.items):
-            top = 4 + index * 40
+            top = 5 + index * 46
             selected = item_id == self.selected_id
             self._rounded_rect(
                 4,
                 top,
                 width - 4,
-                top + 34,
+                top + 38,
                 10,
                 fill=COLORS["field"] if selected else COLORS["panel_alt"],
                 outline=COLORS["accent"] if selected else COLORS["border"],
@@ -129,13 +137,13 @@ class RoundedNavList:
             )
             self.canvas.create_text(
                 17,
-                top + 17,
+                top + 19,
                 anchor="w",
                 text=label,
                 fill=COLORS["text"],
-                font=("Segoe UI Semibold" if selected else "Segoe UI", 9),
+                font=("Segoe UI Semibold" if selected else "Segoe UI", 10),
             )
-        requested = max(42, 8 + len(self.items) * 40)
+        requested = max(48, 10 + len(self.items) * 46)
         self.canvas.configure(scrollregion=(0, 0, width, requested))
 
     def _click(self, event) -> None:
@@ -303,22 +311,25 @@ class DiCoJevDesktop:
         self.secret_store = secret_store or SecretStore(self.memory.data_dir)
         self.memory.ensure_account(self.account)
         projects = self.memory.list_projects(self.account)
-        self.project_id = (
-            projects[0].id if projects else self.memory.create_project(self.account, "Project 1")
-        )
-        for existing in self.memory.list_chats(self.account):
-            if self.memory.get_chat_project(existing.id) is None:
-                self.memory.set_chat_project(existing.id, self.project_id)
-        chats = self.memory.list_chats(self.account, self.project_id)
+        self.project_id: str | None = projects[0].id if projects else None
+        chats = self._chats_in_active_container()
+        if not chats and self.project_id is not None:
+            unassigned = self.memory.list_unassigned_chats(self.account)
+            if unassigned:
+                self.project_id = None
+                chats = unassigned
+        created_chat = not chats
         self.chat_id = (
             chats[0].id
             if chats
             else self.memory.create_chat(self.account, project_id=self.project_id)
         )
-        self._ensure_chat_model_defaults(self.chat_id)
+        self._ensure_chat_model_defaults(self.chat_id, prefer_executable=created_chat)
         self._activate_chat_models(self.chat_id)
         self.ingestor = LocalMediaIngestor()
+        self.vision_bridge = LocalVisionBridge()
         self.attachment_paths: list[str] = []
+        self._scroll_regions: list[tuple[Any, Any]] = []
         self._placeholder_active: set[Any] = set()
         self._placeholder_text: dict[Any, str] = {}
         self.raw_json = ""
@@ -326,23 +337,36 @@ class DiCoJevDesktop:
         self.root.title("DiCoJev — Decision Studio")
         dpi = self.root.winfo_fpixels("1i")
         self.root.tk.call("tk", "scaling", dpi / 72.0)
-        self.root.geometry("1180x800")
-        self.root.minsize(980, 680)
+        self.root.geometry("1280x860")
+        self.root.minsize(1080, 720)
         self.root.configure(bg=COLORS["window"])
         self._set_window_icon()
         self._configure_styles()
         self._build()
+        self.root.bind_all("<Button-1>", self._release_text_focus, add="+")
+        self.root.bind_all("<MouseWheel>", self._route_mousewheel, add="+")
 
-    def _ensure_chat_model_defaults(self, chat_id: str) -> None:
+    def _ensure_chat_model_defaults(self, chat_id: str, *, prefer_executable: bool = False) -> None:
         selection = self.memory.get_chat_models(chat_id)
         language = self.memory.list_models(self.account, "language")
         decision = self.memory.list_models(self.account, "decision")
+        mercury = next((item for item in language if item.adapter == "mercury"), None)
+        jev = next((item for item in decision if item.adapter == "jev_cloud"), None)
+        cloud_ready = (
+            mercury is not None
+            and jev is not None
+            and self.secret_store.has(f"api_key:{mercury.id}")
+            and self.secret_store.has(f"api_key:{jev.id}")
+        )
+        if prefer_executable and cloud_ready:
+            self.memory.set_chat_models(chat_id, mercury.id, jev.id)
+            return
         language_id = selection.language_model_id or next(
-            (item.id for item in language if item.adapter == "diffusiongemma"),
+            (item.id for item in language if item.name == "LLaDA Local"),
             language[0].id if language else None,
         )
         decision_id = selection.decision_model_id or next(
-            (item.id for item in decision if item.adapter == "laya_local"),
+            (item.id for item in decision if item.adapter == "native_dlm"),
             decision[0].id if decision else None,
         )
         self.memory.set_chat_models(chat_id, language_id, decision_id)
@@ -360,6 +384,7 @@ class DiCoJevDesktop:
             "mercury": "mercury-2.5",
         }
         decision_models = {
+            "native_dlm": "llada-v-local",
             "laya_local": "english",
             "djev_local": "dgemma",
             "jev_cloud": "jev-latest",
@@ -380,6 +405,22 @@ class DiCoJevDesktop:
             "base_url": decision.location,
             "timeout_seconds": 600,
         }
+        if decision.adapter == "native_dlm":
+            config["decision_backend"]["runtime_kind"] = "llada_http"
+        bridge = next((item for item in models.values() if item.name == "Qwen2 Local"), None)
+        if language.adapter == "llada" and bridge is not None:
+            config["intent"] = {
+                "base_url": bridge.location,
+                "model": bridge.model_identifier or "qwen2:7b",
+                "timeout_seconds": 180,
+            }
+        else:
+            config["intent"] = {
+                "base_url": language.location,
+                "model": language.model_identifier
+                or generator_models.get(language.adapter, language.name),
+                "timeout_seconds": 600,
+            }
         language_key = self.secret_store.get(f"api_key:{language.id}")
         decision_key = self.secret_store.get(f"api_key:{decision.id}")
         self.client = DirectClient.from_config(
@@ -433,33 +474,64 @@ class DiCoJevDesktop:
         style = self.ttk.Style(self.root)
         style.theme_use("clam")
         style.configure("TFrame", background=COLORS["window"])
+        for name in ("TNotebook", "TNotebook.Tab", "TRadiobutton", "Treeview.Heading"):
+            style.configure(name, background=COLORS["window"], foreground=COLORS["text"])
+            style.map(
+                name,
+                background=[("selected", COLORS["panel_alt"]), ("active", COLORS["panel_alt"])],
+            )
+        for name in ("TEntry", "TCombobox", "Treeview"):
+            style.configure(
+                name,
+                fieldbackground=COLORS["field"],
+                background=COLORS["field"],
+                foreground=COLORS["text"],
+                insertcolor=COLORS["text"],
+            )
+        style.map(
+            "TCombobox",
+            fieldbackground=[("readonly", COLORS["field"])],
+            foreground=[("readonly", COLORS["text"])],
+        )
+        self.root.option_add("*TCombobox*Listbox.background", COLORS["field"])
+        self.root.option_add("*TCombobox*Listbox.foreground", COLORS["text"])
         style.configure("Panel.TFrame", background=COLORS["panel"])
         style.configure("Alt.TFrame", background=COLORS["panel_alt"])
         style.configure(
             "TLabel",
             background=COLORS["window"],
             foreground=COLORS["text"],
-            font=("Segoe UI", 10),
+            font=("Segoe UI", 11),
         )
         style.configure(
             "Muted.TLabel",
             background=COLORS["window"],
             foreground=COLORS["muted"],
-            font=("Segoe UI", 9),
+            font=("Segoe UI", 10),
         )
-        style.configure("Panel.TLabel", background=COLORS["panel"], foreground=COLORS["text"])
-        style.configure("PanelMuted.TLabel", background=COLORS["panel"], foreground=COLORS["muted"])
+        style.configure(
+            "Panel.TLabel",
+            background=COLORS["panel"],
+            foreground=COLORS["text"],
+            font=("Segoe UI", 11),
+        )
+        style.configure(
+            "PanelMuted.TLabel",
+            background=COLORS["panel"],
+            foreground=COLORS["muted"],
+            font=("Segoe UI", 10),
+        )
         style.configure(
             "Title.TLabel",
             background=COLORS["window"],
             foreground=COLORS["text"],
-            font=("Segoe UI Semibold", 20),
+            font=("Segoe UI Semibold", 22),
         )
         style.configure(
             "Section.TLabel",
             background=COLORS["panel"],
             foreground=COLORS["text"],
-            font=("Segoe UI Semibold", 11),
+            font=("Segoe UI Semibold", 13),
         )
         style.configure(
             "Accent.TButton",
@@ -467,7 +539,7 @@ class DiCoJevDesktop:
             foreground="#17120a",
             borderwidth=0,
             padding=(18, 11),
-            font=("Segoe UI Semibold", 10),
+            font=("Segoe UI Semibold", 11),
         )
         style.map(
             "Accent.TButton",
@@ -478,9 +550,16 @@ class DiCoJevDesktop:
             background=COLORS["field"],
             foreground=COLORS["text"],
             borderwidth=0,
-            padding=(12, 8),
+            padding=(13, 10),
+            font=("Segoe UI", 10),
         )
         style.map("Quiet.TButton", background=[("active", COLORS["border"])])
+        style.configure("TEntry", font=("Segoe UI", 11), padding=6)
+        style.configure("TCombobox", font=("Segoe UI", 11), padding=5)
+        style.configure("TRadiobutton", font=("Segoe UI", 11), padding=(2, 5))
+        style.configure("TNotebook.Tab", font=("Segoe UI Semibold", 10), padding=(14, 9))
+        style.configure("Treeview", font=("Segoe UI", 10), rowheight=31)
+        style.configure("Treeview.Heading", font=("Segoe UI Semibold", 10))
 
     def _text(self, parent, *, height: int = 4):
         return self.tk.Text(
@@ -494,8 +573,11 @@ class DiCoJevDesktop:
             relief="flat",
             borderwidth=0,
             padx=11,
-            pady=9,
-            font=("Segoe UI", 10),
+            pady=11,
+            font=("Segoe UI", 11),
+            spacing1=3,
+            spacing2=2,
+            spacing3=7,
         )
 
     def _entry(self, parent):
@@ -507,7 +589,7 @@ class DiCoJevDesktop:
             selectbackground="#49606b",
             relief="flat",
             borderwidth=0,
-            font=("Segoe UI", 10),
+            font=("Segoe UI", 11),
         )
 
     def _draw_brand_mark(self, canvas) -> None:
@@ -557,8 +639,44 @@ class DiCoJevDesktop:
     def _add_placeholder(self, widget, text: str) -> None:
         self._placeholder_text[widget] = text
         self._show_placeholder(widget)
-        widget.bind("<FocusIn>", lambda _event, target=widget: self._hide_placeholder(target))
+        widget.bind(
+            "<KeyPress>", lambda event, target=widget: self._placeholder_keypress(event, target)
+        )
+        widget.bind("<<Paste>>", lambda _event, target=widget: self._hide_placeholder(target))
         widget.bind("<FocusOut>", lambda _event, target=widget: self._restore_placeholder(target))
+
+    def _placeholder_keypress(self, event, widget) -> None:
+        if event.keysym not in {
+            "Shift_L",
+            "Shift_R",
+            "Control_L",
+            "Control_R",
+            "Alt_L",
+            "Alt_R",
+            "Tab",
+            "ISO_Left_Tab",
+            "Left",
+            "Right",
+            "Up",
+            "Down",
+            "Home",
+            "End",
+            "Prior",
+            "Next",
+        }:
+            self._hide_placeholder(widget)
+
+    def _release_text_focus(self, event) -> None:
+        """Hide the insertion cursor when the user clicks outside an input control."""
+        if event.widget.winfo_class() not in {
+            "Text",
+            "Entry",
+            "TEntry",
+            "TCombobox",
+            "Spinbox",
+            "TSpinbox",
+        }:
+            self.root.after_idle(self.root.focus_set)
 
     def _show_placeholder(self, widget) -> None:
         self._clear_field(widget)
@@ -592,7 +710,7 @@ class DiCoJevDesktop:
         return widget.get().strip()
 
     def _field_label(self, parent, text: str) -> None:
-        self.ttk.Label(parent, text=text, style="PanelMuted.TLabel").pack(anchor="w", pady=(10, 5))
+        self.ttk.Label(parent, text=text, style="PanelMuted.TLabel").pack(anchor="w", pady=(14, 7))
 
     def _build(self) -> None:
         header = self.ttk.Frame(self.root, padding=(28, 22, 28, 14))
@@ -635,19 +753,25 @@ class DiCoJevDesktop:
 
         self.scene_host = self.ttk.Frame(self.root, padding=(28, 0, 28, 24))
         self.scene_host.pack(fill="both", expand=True)
-        self.workspace_scene = self.ttk.Frame(self.scene_host)
+        self.workspace_scene = self.tk.PanedWindow(
+            self.scene_host,
+            orient="horizontal",
+            bg=COLORS["window"],
+            borderwidth=0,
+            relief="flat",
+            sashwidth=7,
+            sashpad=5,
+            sashrelief="flat",
+            opaqueresize=True,
+        )
         self.workspace_scene.pack(fill="both", expand=True)
-        self.workspace_scene.columnconfigure(0, minsize=260)
-        self.workspace_scene.columnconfigure(1, weight=5, uniform="column")
-        self.workspace_scene.columnconfigure(2, weight=6, uniform="column")
-        self.workspace_scene.rowconfigure(0, weight=1)
 
         sidebar = self.ttk.Frame(self.workspace_scene, style="Panel.TFrame", padding=14)
-        sidebar.grid(row=0, column=0, sticky="nsew", padx=(0, 8))
         inputs = self.ttk.Frame(self.workspace_scene, style="Panel.TFrame", padding=20)
-        inputs.grid(row=0, column=1, sticky="nsew", padx=8)
         outputs = self.ttk.Frame(self.workspace_scene, style="Panel.TFrame", padding=20)
-        outputs.grid(row=0, column=2, sticky="nsew", padx=(8, 0))
+        self.workspace_scene.add(sidebar, minsize=220, width=250, stretch="always")
+        self.workspace_scene.add(inputs, minsize=330, width=430, stretch="always")
+        self.workspace_scene.add(outputs, minsize=380, width=520, stretch="always")
         self._build_sidebar(sidebar)
         self._build_inputs(self._scrolling_panel(inputs))
         self._build_outputs(outputs)
@@ -656,15 +780,26 @@ class DiCoJevDesktop:
 
     def _scrolling_panel(self, parent):
         canvas = self.tk.Canvas(parent, bg=COLORS["panel"], highlightthickness=0)
-        scrollbar = self.ttk.Scrollbar(parent, orient="vertical", command=canvas.yview)
-        scrollbar.pack(side="right", fill="y")
-        canvas.pack(side="left", fill="both", expand=True)
-        canvas.configure(yscrollcommand=scrollbar.set)
+        canvas.pack(fill="both", expand=True)
         inner = self.ttk.Frame(canvas, style="Panel.TFrame")
         window_id = canvas.create_window(0, 0, window=inner, anchor="nw")
         inner.bind("<Configure>", lambda _event: canvas.configure(scrollregion=canvas.bbox("all")))
         canvas.bind("<Configure>", lambda event: canvas.itemconfigure(window_id, width=event.width))
+        self._scroll_regions.append((canvas, inner))
         return inner
+
+    def _route_mousewheel(self, event):
+        """Route wheel input to a hidden-scrollbar canvas under the pointer."""
+        if event.widget.winfo_class() in {"Text", "Listbox", "Treeview", "TCombobox"}:
+            return None
+        widget_path = str(event.widget)
+        for canvas, inner in self._scroll_regions:
+            if event.widget is canvas or widget_path.startswith(f"{inner}."):
+                steps = -int(event.delta / 120) if event.delta else 0
+                if steps:
+                    canvas.yview_scroll(steps, "units")
+                    return "break"
+        return None
 
     def _show_scene(self, name: str) -> None:
         if self._request_in_progress():
@@ -681,22 +816,24 @@ class DiCoJevDesktop:
         self.ttk.Label(
             parent, text=f"Local profile · {self.account}", style="PanelMuted.TLabel"
         ).pack(anchor="w", pady=(2, 12))
-        for label, command in (
-            ("Projects  ＋", self._new_project),
-            ("New chat  ＋", self._new_chat),
-        ):
-            self.ttk.Button(parent, text=label, style="Quiet.TButton", command=command).pack(
-                fill="x", pady=(4, 6)
-            )
-            if label.startswith("Projects"):
-                self.project_nav = RoundedNavList(
-                    self.tk,
-                    parent,
-                    on_select=self._select_project_id,
-                    on_context=self._project_context_menu,
-                    height=140,
-                )
-                self.project_nav.pack(fill="x", pady=(0, 10))
+        self.ttk.Button(
+            parent, text="Projects  ＋", style="Quiet.TButton", command=self._new_project
+        ).pack(fill="x", pady=(4, 6))
+        self.project_nav = RoundedNavList(
+            self.tk,
+            parent,
+            on_select=self._select_project_id,
+            on_context=self._project_context_menu,
+            height=140,
+        )
+        self.project_nav.pack(fill="x", pady=(0, 6))
+        self.chat_group_var = self.tk.StringVar()
+        self.ttk.Label(parent, textvariable=self.chat_group_var, style="PanelMuted.TLabel").pack(
+            anchor="w", padx=(14, 0), pady=(2, 2)
+        )
+        self.ttk.Button(
+            parent, text="New child chat  ＋", style="Quiet.TButton", command=self._new_chat
+        ).pack(fill="x", padx=(12, 0), pady=(2, 4))
         self.chat_nav = RoundedNavList(
             self.tk,
             parent,
@@ -704,11 +841,8 @@ class DiCoJevDesktop:
             on_context=self._chat_context_menu,
             height=280,
         )
-        self.chat_nav.pack(fill="both", expand=True, pady=(4, 12))
+        self.chat_nav.pack(fill="both", expand=True, padx=(12, 0), pady=(0, 12))
         self.active_models_var = self.tk.StringVar()
-        self.ttk.Label(
-            parent, textvariable=self.active_models_var, style="PanelMuted.TLabel", wraplength=220
-        ).pack(anchor="w", pady=8)
         self.ttk.Button(
             parent, text="Browse project files", style="Quiet.TButton", command=self._browse_project
         ).pack(fill="x", pady=4)
@@ -720,14 +854,127 @@ class DiCoJevDesktop:
         self._update_active_model_label()
 
     def _refresh_project_nav(self) -> None:
-        self.project_nav.set_items(
-            self.memory.list_projects(self.account), selected_id=self.project_id
+        from types import SimpleNamespace
+
+        items = [SimpleNamespace(id=NO_PROJECT_ID, name="No project")]
+        items.extend(self.memory.list_projects(self.account))
+        self.project_nav.set_items(items, selected_id=self.project_id or NO_PROJECT_ID)
+
+    def _chats_in_active_container(self):
+        if self.project_id is None:
+            return self.memory.list_unassigned_chats(self.account)
+        return self.memory.list_chats(self.account, self.project_id)
+
+    def _active_container_name(self) -> str:
+        if self.project_id is None:
+            return "No project"
+        return next(
+            (
+                item.name
+                for item in self.memory.list_projects(self.account)
+                if item.id == self.project_id
+            ),
+            "Project",
         )
 
     def _update_active_model_label(self) -> None:
         self.active_models_var.set(
             f"Language · {self.language_model.name}\nDecision · {self.decision_model.name}"
         )
+        if hasattr(self, "quick_language_var"):
+            self._refresh_quick_model_choices()
+            language_label = next(
+                (
+                    label
+                    for label, model_id in self._quick_language_map.items()
+                    if model_id == self.language_model.id
+                ),
+                self.language_model.name,
+            )
+            decision_label = next(
+                (
+                    label
+                    for label, model_id in self._quick_decision_map.items()
+                    if model_id == self.decision_model.id
+                ),
+                self.decision_model.name,
+            )
+            self.quick_language_var.set(language_label)
+            self.quick_decision_var.set(decision_label)
+
+    def _build_quick_model_switchers(self, parent) -> None:
+        bar = self.ttk.Frame(parent, style="Panel.TFrame")
+        bar.pack(fill="x", pady=(8, 0))
+        self.quick_language_var = self.tk.StringVar()
+        self.quick_decision_var = self.tk.StringVar()
+        self.quick_language = self.ttk.Combobox(
+            bar, textvariable=self.quick_language_var, state="readonly", width=8
+        )
+        self.quick_decision = self.ttk.Combobox(
+            bar, textvariable=self.quick_decision_var, state="readonly", width=8
+        )
+        for column, (label, widget) in enumerate(
+            (("Language model", self.quick_language), ("Decision model", self.quick_decision))
+        ):
+            self.ttk.Label(bar, text=label, style="PanelMuted.TLabel").grid(
+                row=0, column=column, sticky="w", padx=(0 if column == 0 else 10, 0)
+            )
+            widget.grid(
+                row=1,
+                column=column,
+                sticky="ew",
+                padx=(0 if column == 0 else 10, 0),
+                pady=(2, 0),
+            )
+            bar.columnconfigure(column, weight=1, uniform="quick-model")
+        self.quick_language.bind("<<ComboboxSelected>>", self._quick_models_changed)
+        self.quick_decision.bind("<<ComboboxSelected>>", self._quick_models_changed)
+        self._refresh_quick_model_choices()
+        self._update_active_model_label()
+
+    def _model_choice_map(self, role: str) -> dict[str, str]:
+        models = self.memory.list_models(self.account, role)
+        counts = {item.name: sum(model.name == item.name for model in models) for item in models}
+        return {
+            (
+                item.name
+                if counts[item.name] == 1
+                else f"{item.name} · {item.deployment.title()} · {item.adapter}"
+            ): item.id
+            for item in models
+        }
+
+    def _refresh_quick_model_choices(self) -> None:
+        if not hasattr(self, "quick_language"):
+            return
+        self._quick_language_map = self._model_choice_map("language")
+        self._quick_decision_map = self._model_choice_map("decision")
+        self.quick_language.configure(values=list(self._quick_language_map))
+        self.quick_decision.configure(values=list(self._quick_decision_map))
+
+    def _quick_models_changed(self, _event=None) -> None:
+        if self._request_in_progress():
+            self._update_active_model_label()
+            return
+        language_id = self._quick_language_map.get(self.quick_language_var.get())
+        decision_id = self._quick_decision_map.get(self.quick_decision_var.get())
+        if language_id is None or decision_id is None:
+            return
+        previous = self.memory.get_chat_models(self.chat_id)
+        try:
+            self.memory.set_chat_models(self.chat_id, language_id, decision_id)
+            self._activate_chat_models(self.chat_id)
+            self._update_active_model_label()
+            self.status_var.set("Models changed for this chat")
+        except Exception as error:  # noqa: BLE001 - GUI boundary restores prior selection
+            from tkinter import messagebox
+
+            self.memory.set_chat_models(
+                self.chat_id, previous.language_model_id, previous.decision_model_id
+            )
+            self._activate_chat_models(self.chat_id)
+            self._update_active_model_label()
+            messagebox.showerror("Change models", str(error), parent=self.root)
 
     def _new_project(self) -> None:
         if self._request_in_progress():
@@ -745,8 +992,8 @@ class DiCoJevDesktop:
     def _select_project_id(self, project_id: str) -> None:
         if self._request_in_progress():
             return
-        self.project_id = project_id
-        chats = self.memory.list_chats(self.account, project_id)
+        self.project_id = None if project_id == NO_PROJECT_ID else project_id
+        chats = self._chats_in_active_container()
         if not chats:
             self._new_chat()
         else:
@@ -769,12 +1016,31 @@ class DiCoJevDesktop:
         self._select_chat_id(chat_id)
         menu = self.tk.Menu(self.root, tearoff=False)
         menu.add_command(label="Rename", command=self._rename_chat)
+        move_menu = self.tk.Menu(menu, tearoff=False)
+        move_menu.add_command(label="No project", command=lambda: self._move_chat(chat_id, None))
+        for project in self.memory.list_projects(self.account):
+            move_menu.add_command(
+                label=project.name,
+                command=lambda target=project.id: self._move_chat(chat_id, target),
+            )
+        menu.add_cascade(label="Move to", menu=move_menu)
         menu.add_command(label="Delete", command=self._delete_chat)
         menu.tk_popup(x, y)
+
+    def _move_chat(self, chat_id: str, project_id: str | None) -> None:
+        if self._request_in_progress():
+            return
+        self.memory.set_chat_project(chat_id, project_id)
+        self.project_id = project_id
+        self._refresh_project_nav()
+        self._refresh_chats(select_id=chat_id)
+        self.status_var.set(f"Chat moved to {self._active_container_name()}")
 
     def _project_context_menu(self, project_id: str, x: int, y: int) -> None:
         from tkinter import filedialog, messagebox, simpledialog
 
+        if project_id == NO_PROJECT_ID:
+            return
         project = next(
             item for item in self.memory.list_projects(self.account) if item.id == project_id
         )
@@ -796,10 +1062,7 @@ class DiCoJevDesktop:
                 return
             self.memory.delete_project(project_id)
             projects = self.memory.list_projects(self.account)
-            if not projects:
-                self.project_id = self.memory.create_project(self.account, "Project 1")
-            else:
-                self.project_id = projects[0].id
+            self.project_id = projects[0].id if projects else None
             self._select_project_id(self.project_id)
 
         menu = self.tk.Menu(self.root, tearoff=False)
@@ -825,12 +1088,13 @@ class DiCoJevDesktop:
         ).pack(anchor="w", pady=(3, 4))
 
         self._field_label(parent, "CONTEXT")
-        self.context = self._text(parent, height=5)
+        self.context = self._text(parent, height=3)
         self.context.pack(fill="x")
         self._add_placeholder(
             self.context,
-            "Describe the situation, evidence, and uncertainty.\n"
-            "Example: A customer reports two similar card charges; identity is verified.",
+            "Enter context only and let the language model complete the missing fields.\n"
+            "Or use this as a general text box for your complete request.\n"
+            "Example: I have two plans, a $50 budget, and need the better choice.",
         )
         self._field_label(parent, "GOAL")
         self.goal = self._text(parent, height=2)
@@ -838,7 +1102,7 @@ class DiCoJevDesktop:
         self._add_placeholder(
             self.goal,
             "State the desired outcome, or leave blank for intent drafting.\n"
-            "Example: Choose the safest next support action.",
+            "Example: Compare the plans and explain the best fit.",
         )
         self._field_label(parent, "AVAILABLE TOOLS  ·  comma or new line")
         self.tools = self._text(parent, height=2)
@@ -859,13 +1123,21 @@ class DiCoJevDesktop:
 
         advanced = self.ttk.Frame(parent, style="Panel.TFrame")
         advanced.pack(fill="x", pady=(8, 0))
-        self._field_label(advanced, "STRUCTURED STATE  ·  optional JSON object")
-        self.structured = self._text(advanced, height=2)
+        self._field_label(
+            advanced,
+            "STRUCTURED STATE  ·  optional JSON combined with context and generated candidates",
+        )
+        self.structured = self._text(advanced, height=6)
         self.structured.pack(fill="x")
         self._add_placeholder(
             self.structured,
-            "Add optional machine-readable facts as one JSON object.\n"
-            'Example: {"identity_verified": true, "charge_count": 2}',
+            "Optional machine-readable state. Full example:\n"
+            '{"facts":{"identity_verified":true,"charge_count":2},\n'
+            ' "entities":["Plan A","Plan B"],\n'
+            ' "preferences":{"budget":50,"currency":"USD"},\n'
+            ' "uncertainties":["delivery date"],\n'
+            ' "intent_instruction":"Compare against budget",\n'
+            ' "draft_options":["Choose Plan A","Choose Plan B"]}',
         )
         self._field_label(advanced, "ATTACHMENTS  ·  image, text, document, audio, or video")
         image_row = self.ttk.Frame(advanced, style="Panel.TFrame")
@@ -893,7 +1165,10 @@ class DiCoJevDesktop:
             buttons, text="Load sample", style="Quiet.TButton", command=self._load_sample
         ).pack(side="left")
         self.ttk.Button(
-            buttons, text="Understand for me", style="Quiet.TButton", command=self._infer_intent
+            buttons,
+            text="Complete missing fields",
+            style="Quiet.TButton",
+            command=self._infer_intent,
         ).pack(side="left", padx=(6, 0))
         self.decide_button = self.ttk.Button(
             buttons, text="Make decision  →", style="Accent.TButton", command=self._submit
@@ -911,10 +1186,11 @@ class DiCoJevDesktop:
             bg=COLORS["field"],
             fg=COLORS["muted"],
             padx=12,
-            pady=5,
-            font=("Segoe UI Semibold", 9),
+            pady=7,
+            font=("Segoe UI Semibold", 10),
         )
         self.action_badge.pack(side="right")
+        self._build_quick_model_switchers(parent)
 
         self.conversation_text = self.tk.Text(
             parent,
@@ -925,23 +1201,49 @@ class DiCoJevDesktop:
             relief="flat",
             borderwidth=0,
             padx=13,
-            pady=11,
-            font=("Segoe UI", 9),
+            pady=14,
+            font=("Segoe UI", 11),
+            spacing1=4,
+            spacing2=2,
+            spacing3=10,
             state="disabled",
         )
         self.conversation_text.tag_configure(
-            "request_label", justify="right", foreground=COLORS["accent"], spacing1=8
+            "request_label",
+            justify="right",
+            foreground=COLORS["accent"],
+            font=("Segoe UI Semibold", 10),
+            spacing1=12,
+            spacing3=4,
         )
         self.conversation_text.tag_configure(
-            "request", justify="right", foreground=COLORS["text"], lmargin1=65, lmargin2=65
+            "request",
+            justify="right",
+            foreground=COLORS["text"],
+            lmargin1=65,
+            lmargin2=65,
+            spacing1=4,
+            spacing2=3,
+            spacing3=14,
         )
         self.conversation_text.tag_configure(
-            "decision_label", justify="left", foreground=COLORS["info"], spacing1=8
+            "decision_label",
+            justify="left",
+            foreground=COLORS["info"],
+            font=("Segoe UI Semibold", 10),
+            spacing1=12,
+            spacing3=4,
         )
         self.conversation_text.tag_configure(
-            "decision", justify="left", foreground=COLORS["text"], rmargin=65
+            "decision",
+            justify="left",
+            foreground=COLORS["text"],
+            rmargin=65,
+            spacing1=4,
+            spacing2=3,
+            spacing3=14,
         )
-        self.conversation_text.pack(fill="both", expand=True, pady=(10, 10))
+        self.conversation_text.pack(fill="both", expand=True, pady=(14, 14))
         self._refresh_history()
 
         self.selected_var = self.tk.StringVar(value="Submit a decision to begin.")
@@ -953,8 +1255,8 @@ class DiCoJevDesktop:
             justify="left",
             anchor="w",
             wraplength=490,
-            font=("Segoe UI Semibold", 15),
-        ).pack(fill="x", pady=(7, 10))
+            font=("Segoe UI Semibold", 16),
+        ).pack(fill="x", pady=(10, 14))
 
         metrics = self.ttk.Frame(parent, style="Panel.TFrame")
         metrics.pack(fill="x")
@@ -963,12 +1265,12 @@ class DiCoJevDesktop:
         self.feedback_var = self._metric(metrics, "FEEDBACK", "—", 2)
 
         self.ttk.Label(parent, text="Candidates", style="Section.TLabel").pack(
-            anchor="w", pady=(12, 5)
+            anchor="w", pady=(16, 7)
         )
         self.candidate_text = self._output_box(parent, height=4)
         self.candidate_text.pack(fill="x")
         self.ttk.Label(parent, text="Controller trace", style="Section.TLabel").pack(
-            anchor="w", pady=(10, 5)
+            anchor="w", pady=(14, 7)
         )
         self.trace_text = self._output_box(parent, height=3)
         self.trace_text.pack(fill="x")
@@ -985,7 +1287,7 @@ class DiCoJevDesktop:
             text=label,
             bg=COLORS["panel_alt"],
             fg=COLORS["muted"],
-            font=("Segoe UI Semibold", 8),
+            font=("Segoe UI Semibold", 9),
         ).pack(anchor="w")
         variable = self.tk.StringVar(value=value)
         self.tk.Label(
@@ -993,8 +1295,8 @@ class DiCoJevDesktop:
             textvariable=variable,
             bg=COLORS["panel_alt"],
             fg=COLORS["text"],
-            font=("Segoe UI Semibold", 11),
-        ).pack(anchor="w", pady=(4, 0))
+            font=("Segoe UI Semibold", 12),
+        ).pack(anchor="w", pady=(6, 0))
         return variable
 
     def _output_box(self, parent, *, height: int):
@@ -1069,7 +1371,11 @@ class DiCoJevDesktop:
     def _submit(self) -> None:
         from tkinter import messagebox
 
-        if not self._field_value(self.goal):
+        signature = tuple(
+            self._field_value(widget)
+            for widget in (self.context, self.goal, self.tools, self.constraints, self.structured)
+        )
+        if not all(signature[1:4]) and signature != getattr(self, "_completion_signature", None):
             self._infer_intent()
             return
         try:
@@ -1077,10 +1383,29 @@ class DiCoJevDesktop:
         except (ValueError, json.JSONDecodeError) as error:
             messagebox.showerror("Check the request", str(error), parent=self.root)
             return
+        attachments = tuple(self.attachment_paths)
+        visual_attachments = any(
+            Path(path).suffix.lower() in IMAGE_SUFFIXES | VIDEO_SUFFIXES for path in attachments
+        )
+        cloud_pair = any(
+            model.deployment == "online" for model in (self.language_model, self.decision_model)
+        )
+        if (
+            visual_attachments
+            and cloud_pair
+            and not messagebox.askyesno(
+                "Send local vision analysis to cloud models?",
+                "The original image or video frames will stay on this computer and be analyzed "
+                "by local Qwen3.5. The resulting text description will be sent to the selected "
+                "cloud language and decision models. Continue?",
+                parent=self.root,
+            )
+        ):
+            self.status_var.set("Attachment request cancelled")
+            return
         self.decide_button.configure(state="disabled")
         self.status_var.set("Thinking…")
         self.status_dot.configure(fg=COLORS["accent"])
-        attachments = tuple(self.attachment_paths)
         latest = self.memory.latest_turn(self.chat_id, "user") or {}
         matches_draft = (
             latest.get("kind") == "intent_draft"
@@ -1117,6 +1442,21 @@ class DiCoJevDesktop:
     ) -> None:
         try:
             request = self.ingestor.enrich_request(request, attachments)
+            orchestrator = getattr(client.runtime, "orchestrator", None)
+            generator = getattr(orchestrator, "generator", None)
+            backend = getattr(orchestrator, "backend", None)
+            generator_capabilities = getattr(generator, "capabilities", None)
+            backend_capabilities = getattr(backend, "capabilities", None)
+            native_pair = bool(
+                generator_capabilities
+                and generator_capabilities.supports_images
+                and generator_capabilities.supports_native_multimodal
+                and backend_capabilities
+                and backend_capabilities.supports_images
+                and backend_capabilities.supports_native_multimodal
+            )
+            if request.state.images and not native_pair:
+                request = self.vision_bridge.enrich_request(request)
             response = client.decide_sync(request)
             presentation = present_response(response)
         except Exception as error:  # noqa: BLE001 - GUI boundary presents normalized failure
@@ -1183,29 +1523,35 @@ class DiCoJevDesktop:
         self.status_var.set("Understanding…")
         self.status_dot.configure(fg=COLORS["accent"])
         history = self.memory.decision_history(self.chat_id)
+        partial = {
+            "goal": self._field_value(self.goal),
+            "constraints": split_items(self._field_value(self.constraints)),
+            "suggested_tools": split_items(self._field_value(self.tools)),
+            "attachments": [
+                {"name": Path(path).name, "kind": Path(path).suffix.lower()}
+                for path in self.attachment_paths
+            ],
+        }
         threading.Thread(
             target=self._run_intent_inference,
-            args=(context, history, self.chat_id, self.client),
+            args=(context, history, self.chat_id, self.client, partial),
             daemon=True,
         ).start()
 
     def _run_intent_inference(
-        self, context: str, history: tuple[str, ...], chat_id: str, client: DirectClient
+        self,
+        context: str,
+        history: tuple[str, ...],
+        chat_id: str,
+        client: DirectClient,
+        partial_fields: dict | None = None,
     ) -> None:
-        direct = route_direct_answer(context)
-        if direct is not None:
-            self.root.after(0, self._show_direct_answer, direct, context, chat_id)
-            return
-        used_fallback = False
         try:
-            draft = client.infer_intent_sync(context, history)
-        except GeneratorUnavailable:
-            draft = fallback_intent_draft(context)
-            used_fallback = True
+            draft = client.infer_intent_sync(context, history, partial_fields)
         except Exception as error:  # noqa: BLE001 - GUI boundary
             self.root.after(0, self._show_error, type(error).__name__, str(error))
             return
-        self.root.after(0, self._show_intent, draft, chat_id, used_fallback, client)
+        self.root.after(0, self._show_intent, draft, chat_id, False, client)
 
     def _show_intent(
         self,
@@ -1216,11 +1562,26 @@ class DiCoJevDesktop:
     ) -> None:
         from tkinter import messagebox
 
-        self._set_field(self.goal, draft.goal)
-        if draft.constraints:
+        if not self._field_value(self.goal):
+            self._set_field(self.goal, draft.goal)
+        if draft.constraints and not self._field_value(self.constraints):
             self._set_field(self.constraints, "\n".join(draft.constraints))
-        if draft.suggested_tools:
+        if draft.suggested_tools and not self._field_value(self.tools):
             self._set_field(self.tools, "\n".join(draft.suggested_tools))
+        try:
+            structured = json.loads(self._field_value(self.structured) or "{}")
+            if not isinstance(structured, dict):
+                raise TypeError("Structured state must be a JSON object.")
+        except (ValueError, TypeError) as error:
+            self._show_error("Invalid structured state", str(error))
+            return
+        structured["intent_instruction"] = draft.instruction
+        structured["draft_options"] = list(draft.options)
+        self._set_field(self.structured, json.dumps(structured, ensure_ascii=False))
+        self._completion_signature = tuple(
+            self._field_value(widget)
+            for widget in (self.context, self.goal, self.tools, self.constraints, self.structured)
+        )
         status = "Offline draft" if used_fallback else "Intent drafted"
         self.status_var.set(f"{status} · {draft.confidence:.0%} confidence")
         self.status_dot.configure(fg=COLORS["warn"] if used_fallback else COLORS["info"])
@@ -1243,12 +1604,16 @@ class DiCoJevDesktop:
                     "goal": draft.goal,
                     "tools": list(draft.suggested_tools),
                     "constraints": list(draft.constraints),
+                    "instruction": draft.instruction,
+                    "options": list(draft.options),
                     "summary": f"Drafted goal: {draft.goal}",
                 },
             )
             self._refresh_chats(select_id=chat_id)
             self._refresh_history()
         note = draft.instruction
+        if draft.options:
+            note += "\n\nGenerated options:\n• " + "\n• ".join(draft.options)
         if draft.assumptions:
             note += "\n\nAssumptions to review:\n• " + "\n• ".join(draft.assumptions)
         if draft.needs_clarification and draft.clarifying_question:
@@ -1317,14 +1682,16 @@ class DiCoJevDesktop:
             self._refresh_history()
 
     def _refresh_chats(self, *, select_id: str | None = None) -> None:
-        self._chat_rows = self.memory.list_chats(self.account, self.project_id)
+        self._chat_rows = self._chats_in_active_container()
+        if hasattr(self, "chat_group_var"):
+            self.chat_group_var.set(f"└  Chats · {self._active_container_name()}")
         self.chat_nav.set_items(self._chat_rows, selected_id=select_id)
 
     def _new_chat(self) -> None:
         if self._request_in_progress():
             return
         self.chat_id = self.memory.create_chat(self.account, project_id=self.project_id)
-        self._ensure_chat_model_defaults(self.chat_id)
+        self._ensure_chat_model_defaults(self.chat_id, prefer_executable=True)
         self._activate_chat_models(self.chat_id)
         for widget in (self.context, self.goal, self.tools, self.constraints, self.structured):
             self._show_placeholder(widget)
@@ -1366,13 +1733,14 @@ class DiCoJevDesktop:
         ):
             return
         self.memory.delete_chat(self.chat_id)
-        chats = self.memory.list_chats(self.account, self.project_id)
+        chats = self._chats_in_active_container()
+        created_chat = not chats
         self.chat_id = (
             chats[0].id
             if chats
             else self.memory.create_chat(self.account, project_id=self.project_id)
         )
-        self._ensure_chat_model_defaults(self.chat_id)
+        self._ensure_chat_model_defaults(self.chat_id, prefer_executable=created_chat)
         self._activate_chat_models(self.chat_id)
         self._refresh_chats(select_id=self.chat_id)
         selected = next(chat for chat in self._chat_rows if chat.id == self.chat_id)
@@ -1410,6 +1778,8 @@ class DiCoJevDesktop:
                     ("Context", turn.content.get("context")),
                     ("Tools", ", ".join(turn.content.get("tools", ()))),
                     ("Constraints", "; ".join(turn.content.get("constraints", ()))),
+                    ("Instruction", turn.content.get("instruction")),
+                    ("Generated options", "; ".join(turn.content.get("options", ()))),
                 ]
                 body = "\n".join(f"{name}: {value}" for name, value in fields if value)
                 widget.insert("end", f"{body}\n\n", "request")
@@ -1526,25 +1896,29 @@ class DiCoJevDesktop:
         self.usage_page = self.ttk.Frame(self.settings_tabs, padding=18)
         for page, label in (
             (self.models_page, "Model registry"),
-            (self.chats_page, "Project chats"),
+            (self.chats_page, "Chats & models"),
             (self.usage_page, "Token usage"),
         ):
             self.settings_tabs.add(page, text=label)
         self.models_page = self._scrolling_panel(self.models_page)
         self.chats_page = self._scrolling_panel(self.chats_page)
-        columns = ("name", "role", "deployment", "adapter", "location")
+        columns = ("name", "role", "deployment", "adapter", "source")
         self.model_table = self.ttk.Treeview(
             self.models_page, columns=columns, show="headings", height=7
         )
         for column in columns:
             self.model_table.heading(column, text=column.title())
-            self.model_table.column(column, width=140 if column != "location" else 280)
+            self.model_table.column(column, width=140 if column != "source" else 280)
         self.model_table.pack(fill="x", pady=(0, 14))
         self.model_table.bind("<Button-3>", self._model_context_menu)
         self.editing_model_id = None
         form = self.ttk.Frame(self.models_page)
         form.pack(fill="x")
+        self.local_model_path = self.tk.StringVar()
+        self.discovered_model = None
         self.model_form = {}
+        self.model_widgets = {}
+        self.model_labels = {}
         fields = (
             ("Name", None),
             ("Role", ("language", "decision")),
@@ -1559,6 +1933,7 @@ class DiCoJevDesktop:
                     "laya_local",
                     "djev_local",
                     "jev_cloud",
+                    "native_dlm",
                 ),
             ),
             ("Location", None),
@@ -1566,10 +1941,30 @@ class DiCoJevDesktop:
             ("API key", None),
         )
         for index, (label, choices) in enumerate(fields):
-            self.ttk.Label(form, text=label).grid(row=index, column=0, sticky="w", pady=5)
+            display_label = {
+                "Location": "API URL",
+                "Model identifier": "Model name",
+            }.get(label, label)
+            title = self.ttk.Label(form, text=display_label)
+            title.grid(row=index, column=0, sticky="w", pady=5)
+            self.model_labels[label] = title
             variable = self.tk.StringVar()
             self.model_form[label] = variable
-            if choices:
+            if label in {"Role", "Deployment"}:
+                widget = self.ttk.Frame(form)
+                labels = (
+                    ("Language model", "Decision model") if label == "Role" else ("Local", "Cloud")
+                )
+                for value, caption in zip(choices, labels, strict=True):
+                    self.ttk.Radiobutton(
+                        widget,
+                        text=caption,
+                        value=value,
+                        variable=variable,
+                        command=self._update_model_controls,
+                    ).pack(side="left", padx=(0, 18))
+                variable.set(choices[0])
+            elif choices:
                 widget = self.ttk.Combobox(
                     form, textvariable=variable, values=choices, state="readonly"
                 )
@@ -1579,18 +1974,35 @@ class DiCoJevDesktop:
                     form, textvariable=variable, show="•" if label == "API key" else ""
                 )
             widget.grid(row=index, column=1, sticky="ew", pady=5)
+            self.model_widgets[label] = widget
+            if label == "Adapter":
+                widget.bind("<<ComboboxSelected>>", lambda _event: self._update_model_controls())
         form.columnconfigure(1, weight=1)
-        self.ttk.Label(
+        for row in range(4, 8):
+            form.grid_rowconfigure(row, minsize=46)
+        self.local_path_label = self.ttk.Label(form, text="Model folder")
+        self.local_path_label.grid(row=4, column=0, sticky="w", pady=5)
+        self.local_path_row = self.ttk.Frame(form)
+        self.local_path_row.grid(row=4, column=1, sticky="ew", pady=5)
+        self.ttk.Entry(
+            self.local_path_row, textvariable=self.local_model_path, state="readonly"
+        ).pack(side="left", fill="x", expand=True)
+        self.ttk.Button(
+            self.local_path_row, text="Choose model folder…", command=self._choose_model_folder
+        ).pack(side="left", padx=8)
+        self.model_hint = self.ttk.Label(
             form,
-            text="Location: local server URL or online API endpoint. Blank key keeps it; REMOVE clears it.",
+            text="Use exactly one source: a local model folder or cloud API credentials.",
             style="Muted.TLabel",
-        ).grid(row=7, column=1, sticky="w")
+        )
+        self.model_hint.grid(row=8, column=1, sticky="w")
         self.ttk.Button(
             form, text="Save model", command=self._add_registered_model, style="Accent.TButton"
-        ).grid(row=8, column=1, sticky="e", pady=10)
+        ).grid(row=9, column=1, sticky="e", pady=10)
         self.ttk.Button(form, text="New model", command=self._reset_model_form).grid(
-            row=8, column=0, sticky="w", pady=10
+            row=9, column=0, sticky="w", pady=10
         )
+        self._update_model_controls()
         self.settings_chat_rows = self.ttk.Frame(self.chats_page)
         self.settings_chat_rows.pack(fill="both", expand=True)
         columns = ("model", "chat", "input", "output", "total", "calls")
@@ -1601,30 +2013,67 @@ class DiCoJevDesktop:
         self.usage_table.pack(fill="both", expand=True)
         self._refresh_settings_scene()
 
-    def _add_registered_model(self) -> None:
+    def _add_registered_model(self, validated_values: dict | None = None) -> None:
         from tkinter import messagebox
 
-        values = {key: var.get().strip() for key, var in self.model_form.items()}
-        roles = {
-            "language": {"diffusiongemma", "llada", "mercury", "openai_compatible"},
-            "decision": {"laya_local", "djev_local", "jev_cloud"},
+        values = validated_values or {
+            key: var.get().strip() for key, var in self.model_form.items()
         }
         try:
-            if not values["Name"] or not values["Location"]:
-                raise ValueError("Enter a model name and endpoint location.")
-            if values["Adapter"] not in roles[values["Role"]]:
-                raise ValueError("Choose an adapter that matches the model role.")
+            if not values["Name"]:
+                raise ValueError("Enter a model name.")
+            validate_model_standard(values["Adapter"], values["Role"], values["Deployment"])
+            if values["Deployment"] == "online" and not values["Model identifier"]:
+                raise ValueError("Enter the provider model identifier to validate its capability.")
+            if values["Deployment"] == "local":
+                if not self.local_model_path.get():
+                    raise ValueError("Choose the local model folder.")
+                discovered = discover_local_model(self.local_model_path.get(), values["Role"])
+                if discovered["adapter"] != values["Adapter"]:
+                    raise ValueError("Selected folder does not match the chosen model adapter.")
+                values["Model identifier"] = discovered["model_identifier"]
+                values["Location"] = discovered["endpoint"] or {
+                    "diffusiongemma": "http://127.0.0.1:11434",
+                    "llada": "http://127.0.0.1:8002",
+                    "openai_compatible": "http://127.0.0.1:8002",
+                    "laya_local": "http://127.0.0.1:8000",
+                    "djev_local": "http://127.0.0.1:8000",
+                    "native_dlm": "http://127.0.0.1:8002",
+                }.get(values["Adapter"], "http://127.0.0.1:8000")
+                values["API key"] = ""
+            elif not values["Location"]:
+                raise ValueError("Enter the cloud API endpoint.")
             from urllib.parse import urlparse
 
             endpoint = urlparse(values["Location"])
             if endpoint.scheme not in {"http", "https"} or not endpoint.hostname:
-                raise ValueError("Enter a running model server URL, such as http://127.0.0.1:8000.")
+                raise ValueError("Enter a valid API URL, such as https://provider.example/v1.")
             if values["Deployment"] == "local" and endpoint.hostname not in {
                 "localhost",
                 "127.0.0.1",
                 "::1",
             }:
                 raise ValueError("Local models must use a loopback server endpoint.")
+            if values["Deployment"] == "online" and validated_values is None:
+                from tkinter import messagebox
+
+                if not messagebox.askyesno(
+                    "Validate cloud model",
+                    "Send a small capability test before saving? This may consume API tokens.",
+                    parent=self.root,
+                ):
+                    return
+                model_id = self.editing_model_id
+                key = values["API key"] or (
+                    self.secret_store.get(f"api_key:{model_id}") if model_id else ""
+                )
+                self.status_var.set("Validating cloud model…")
+                threading.Thread(
+                    target=self._validate_cloud_registration,
+                    args=(values, key, model_id),
+                    daemon=True,
+                ).start()
+                return
             parameters = {
                 "name": values["Name"],
                 "role": values["Role"],
@@ -1632,6 +2081,9 @@ class DiCoJevDesktop:
                 "adapter": values["Adapter"],
                 "location": values["Location"],
                 "model_identifier": values["Model identifier"],
+                "local_path": self.local_model_path.get()
+                if values["Deployment"] == "local"
+                else "",
             }
             if self.editing_model_id:
                 model_id = self.editing_model_id
@@ -1645,16 +2097,109 @@ class DiCoJevDesktop:
                 )
             self.model_form["API key"].set("")
             self._refresh_settings_scene()
+            self._refresh_quick_model_choices()
             self._activate_chat_models(self.chat_id)
             self._update_active_model_label()
             self.status_var.set("Model registered")
         except Exception as error:  # noqa: BLE001 - GUI boundary
             messagebox.showerror("Model registration", str(error), parent=self.root)
 
+    def _validate_cloud_registration(self, values: dict, key: str, model_id: str | None) -> None:
+        try:
+            asyncio.run(
+                validate_cloud_model(
+                    values["Location"], key, values["Model identifier"], values["Role"]
+                )
+            )
+        except Exception as error:  # noqa: BLE001 - normalize service failure without printing keys
+            detail = (
+                str(error)
+                if isinstance(error, ValueError)
+                else "Service unreachable; model type could not be verified."
+            )
+            self.root.after(0, self._show_error, "Model validation", detail)
+            return
+
+        def save():
+            current = {key: var.get().strip() for key, var in self.model_form.items()}
+            if self.editing_model_id != model_id or current != values:
+                self.status_var.set("Model selection changed; please validate again")
+                return
+            self._add_registered_model(values)
+
+        self.root.after(0, save)
+
     def _reset_model_form(self) -> None:
         self.editing_model_id = None
+        self.local_model_path.set("")
+        self.discovered_model = None
         for field in ("Name", "Location", "Model identifier", "API key"):
             self.model_form[field].set("")
+
+    def _update_model_controls(self) -> None:
+        local = self.model_form["Deployment"].get() == "local"
+        standards = ADAPTER_STANDARDS.get(
+            (self.model_form["Role"].get(), self.model_form["Deployment"].get()), ()
+        )
+        self.model_widgets["Adapter"].configure(values=standards)
+        if self.model_form["Adapter"].get() not in standards and standards:
+            self.model_form["Adapter"].set(standards[0])
+        if local:
+            self.local_path_row.grid()
+            self.local_path_label.grid()
+            self.model_widgets["Location"].grid_remove()
+            self.model_labels["Location"].grid_remove()
+            self.model_widgets["API key"].grid_remove()
+            self.model_labels["API key"].grid_remove()
+            self.model_widgets["Model identifier"].grid_remove()
+            self.model_labels["Model identifier"].grid_remove()
+        else:
+            self.local_path_row.grid_remove()
+            self.local_path_label.grid_remove()
+            self.model_widgets["Location"].grid()
+            self.model_labels["Location"].grid()
+            self.model_widgets["API key"].grid()
+            self.model_labels["API key"].grid()
+            self.model_widgets["Model identifier"].grid()
+            self.model_labels["Model identifier"].grid()
+            defaults = {
+                "mercury": ("https://api.inceptionlabs.ai/v1", "mercury-2.5"),
+                "jev_cloud": ("https://api.typesafe.ai", "jev-latest"),
+            }
+            default = defaults.get(self.model_form["Adapter"].get())
+            if default:
+                if not self.model_form["Location"].get().strip():
+                    self.model_form["Location"].set(default[0])
+                if not self.model_form["Model identifier"].get().strip():
+                    self.model_form["Model identifier"].set(default[1])
+        self.model_hint.configure(
+            text=(
+                "Choose the folder containing model metadata and weights. No API key is used."
+                if local
+                else (
+                    "API URL = provider address; Model name = model served there; API key = access. "
+                    "Mercury and Jev defaults are filled automatically."
+                )
+            )
+        )
+
+    def _choose_model_folder(self) -> None:
+        from tkinter import filedialog, messagebox
+
+        folder = filedialog.askdirectory(title="Select local model folder", parent=self.root)
+        if not folder:
+            return
+        try:
+            model = discover_local_model(folder, self.model_form["Role"].get())
+            self.local_model_path.set(model["path"])
+            self.discovered_model = model
+            self.model_form["Adapter"].set(model["adapter"])
+            self.model_form["Model identifier"].set(model["model_identifier"])
+            if model["endpoint"]:
+                self.model_form["Location"].set(model["endpoint"])
+            self.status_var.set("Model found · configure its running local runtime")
+        except (ValueError, OSError) as error:
+            messagebox.showerror("Local model", str(error), parent=self.root)
 
     def _model_context_menu(self, event) -> None:
         from tkinter import messagebox
@@ -1665,6 +2210,7 @@ class DiCoJevDesktop:
         model = next(item for item in self.memory.list_models(self.account) if item.id == model_id)
 
         def edit():
+            self.local_model_path.set("")
             self.editing_model_id = model_id
             for field, value in (
                 ("Name", model.name),
@@ -1675,7 +2221,9 @@ class DiCoJevDesktop:
                 ("Model identifier", model.model_identifier),
             ):
                 self.model_form[field].set(value)
+            self.local_model_path.set(model.local_path)
             self.model_form["API key"].set("")
+            self._update_model_controls()
 
         def delete():
             if any(
@@ -1709,72 +2257,103 @@ class DiCoJevDesktop:
         self.model_table.delete(*self.model_table.get_children())
         models = self.memory.list_models(self.account)
         for model in models:
+            source = (
+                model.local_path or f"Built-in runtime · {model.location}"
+                if model.deployment == "local"
+                else model.location
+            )
             self.model_table.insert(
                 "",
                 "end",
                 iid=model.id,
-                values=(model.name, model.role, model.deployment, model.adapter, model.location),
+                values=(model.name, model.role, model.deployment, model.adapter, source),
             )
         for child in self.settings_chat_rows.winfo_children():
             child.destroy()
-        languages = [item for item in models if item.role == "language"]
-        decisions = [item for item in models if item.role == "decision"]
-        self.ttk.Label(self.settings_chat_rows, text="Chat name").grid(row=0, column=0, sticky="w")
+        self._refresh_quick_model_choices()
+        language_map = self._model_choice_map("language")
+        decision_map = self._model_choice_map("decision")
+        language_by_id = {model_id: label for label, model_id in language_map.items()}
+        decision_by_id = {model_id: label for label, model_id in decision_map.items()}
+        self.ttk.Label(
+            self.settings_chat_rows,
+            text="All chats · base models are saved independently for every chat",
+            style="Section.TLabel",
+        ).grid(row=0, column=0, columnspan=4, sticky="w", pady=(0, 10))
+        self.ttk.Label(self.settings_chat_rows, text="Chat name").grid(row=1, column=0, sticky="w")
         self.ttk.Label(self.settings_chat_rows, text="Language model · DLM / LLM").grid(
-            row=0, column=1
+            row=1, column=1
         )
         self.ttk.Label(self.settings_chat_rows, text="Decision model · Jev / Laya").grid(
-            row=0, column=2
+            row=1, column=2
         )
-        for row, chat in enumerate(self.memory.list_chats(self.account, self.project_id), start=1):
-            self._ensure_chat_model_defaults(chat.id)
-            selection = self.memory.get_chat_models(chat.id)
-            name = self.tk.StringVar(value=chat.title)
-            language = self.tk.StringVar(
-                value=next(
-                    (item.name for item in languages if item.id == selection.language_model_id), ""
-                )
-            )
-            decision = self.tk.StringVar(
-                value=next(
-                    (item.name for item in decisions if item.id == selection.decision_model_id), ""
-                )
-            )
-            self.ttk.Entry(self.settings_chat_rows, textvariable=name).grid(
-                row=row, column=0, padx=6, pady=8, sticky="ew"
-            )
-            self.ttk.Combobox(
+        groups = [("No project", self.memory.list_unassigned_chats(self.account))]
+        groups.extend(
+            (project.name, self.memory.list_chats(self.account, project.id))
+            for project in self.memory.list_projects(self.account)
+        )
+        row = 2
+        for group_name, chats in groups:
+            self.ttk.Label(
                 self.settings_chat_rows,
-                textvariable=language,
-                values=[item.name for item in languages],
-                state="readonly",
-            ).grid(row=row, column=1, padx=6, pady=8, sticky="ew")
-            self.ttk.Combobox(
-                self.settings_chat_rows,
-                textvariable=decision,
-                values=[item.name for item in decisions],
-                state="readonly",
-            ).grid(row=row, column=2, padx=6, pady=8, sticky="ew")
+                text=f"▾  {group_name}  ·  {len(chats)} chat{'s' if len(chats) != 1 else ''}",
+                style="PanelMuted.TLabel",
+            ).grid(row=row, column=0, columnspan=4, sticky="ew", pady=(14, 4))
+            row += 1
+            for chat in chats:
+                self._ensure_chat_model_defaults(chat.id)
+                selection = self.memory.get_chat_models(chat.id)
+                name = self.tk.StringVar(value=chat.title)
+                language = self.tk.StringVar(
+                    value=language_by_id.get(selection.language_model_id, "")
+                )
+                decision = self.tk.StringVar(
+                    value=decision_by_id.get(selection.decision_model_id, "")
+                )
+                self.ttk.Entry(self.settings_chat_rows, textvariable=name).grid(
+                    row=row, column=0, padx=6, pady=8, sticky="ew"
+                )
+                self.ttk.Combobox(
+                    self.settings_chat_rows,
+                    textvariable=language,
+                    values=list(language_map),
+                    state="readonly",
+                ).grid(row=row, column=1, padx=6, pady=8, sticky="ew")
+                self.ttk.Combobox(
+                    self.settings_chat_rows,
+                    textvariable=decision,
+                    values=list(decision_map),
+                    state="readonly",
+                ).grid(row=row, column=2, padx=6, pady=8, sticky="ew")
 
-            def save(cid=chat.id, nv=name, lv=language, dv=decision):
-                from tkinter import messagebox
+                def save(cid=chat.id, nv=name, lv=language, dv=decision):
+                    from tkinter import messagebox
 
-                try:
-                    lid = next(item.id for item in languages if item.name == lv.get())
-                    did = next(item.id for item in decisions if item.name == dv.get())
-                    self.memory.set_chat_models(cid, lid, did)
-                    self.memory.rename_chat(cid, nv.get())
-                    if cid == self.chat_id:
-                        self._activate_chat_models(cid)
-                        self._update_active_model_label()
-                    self._refresh_chats(select_id=self.chat_id)
-                    self.status_var.set("Chat settings saved")
-                except Exception as error:  # noqa: BLE001 - GUI boundary
-                    messagebox.showerror("Chat settings", str(error), parent=self.root)
+                    previous = self.memory.get_chat_models(cid)
+                    try:
+                        self.memory.set_chat_models(
+                            cid, language_map[lv.get()], decision_map[dv.get()]
+                        )
+                        self.memory.rename_chat(cid, nv.get())
+                        if cid == self.chat_id:
+                            self._activate_chat_models(cid)
+                            self._update_active_model_label()
+                        self._refresh_project_nav()
+                        self._refresh_chats(select_id=self.chat_id)
+                        self.status_var.set("Chat settings saved")
+                    except Exception as error:  # noqa: BLE001 - GUI boundary
+                        self.memory.set_chat_models(
+                            cid, previous.language_model_id, previous.decision_model_id
+                        )
+                        if cid == self.chat_id:
+                            self._activate_chat_models(cid)
+                            self._update_active_model_label()
+                        messagebox.showerror("Chat settings", str(error), parent=self.root)
 
-            self.ttk.Button(self.settings_chat_rows, text="Save", command=save).grid(
-                row=row, column=3, padx=6, pady=8
-            )
+                self.ttk.Button(self.settings_chat_rows, text="Save", command=save).grid(
+                    row=row, column=3, padx=6, pady=8
+                )
+                row += 1
         for column in range(3):
             self.settings_chat_rows.columnconfigure(column, weight=1)
         self.usage_table.delete(*self.usage_table.get_children())

@@ -65,13 +65,20 @@ The project does **not** claim that candidate generation, generate-then-rank, NO
 
 ## Default model and deployment philosophy
 
-The desktop defaults to **DiffusionGemma Local + Laya Local**, independently selected for each
-chat. DiffusionGemma uses the installed Ollama model `dicojev-diffusiongemma` on port 11434;
-Laya uses its local System One server on port 8000. Register or edit endpoints in Settings.
-The research configuration `configs/versions/v5.yaml` retains the unified LLaDA-V path on
-port 8002. The default controller is the
+DiCoJev always keeps the core route as a **diffusion language model + decision model** pair.
+When encrypted Mercury and Jev credentials are registered, new desktop chats default to
+**Mercury Cloud + Jev Cloud**, the tested fast executable route. Mercury also performs intent
+drafting for those chats. Without both credentials, new
+chats retain the private **LLaDA Local + LLaDA Native Decision** route on port 8002; it requires
+the local service and is slow on CPU-only machines. Qwen2 on Ollama port 11434 is only the fast
+local intent bridge for LLaDA chats, structuring context-only input before the core decision loop; it never
+replaces the diffusion generator or final decision reader. DiffusionGemma remains available in the registry for a compatible vLLM,
+Transformers, SGLang, or custom llama.cpp runtime; stock Ollama on the tested host rejects its
+architecture. Laya remains an optional local System One decision adapter on port 8000.
+The legacy unified LLaDA-V research path remains documented under `configs/versions/`; supported
+application defaults live in `configs/default.yaml`. The default controller is the
 deterministic threshold policy; the learned adaptive policy remains an explicit experiment because
-the live v4 study did not show it outperforming fixed policies.
+the recorded pre-1.0 study did not show it outperforming fixed policies.
 
 Mercury, DiffusionGemma, Jev, Djev, Laya, and the cross-encoder remain supported comparison paths.
 They are not prerequisites for offline development. The earlier external GPU-server plan has been
@@ -100,7 +107,7 @@ For Linux or macOS:
 python -m venv .venv
 source .venv/bin/activate
 python -m pip install -e '.[dev,api]'
-python examples/v5_offline_agent.py
+python examples/offline_agent.py
 python -m pytest
 ```
 
@@ -110,13 +117,13 @@ On Windows PowerShell:
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -e ".[dev,api]"
-python examples/v5_offline_agent.py
+python examples/offline_agent.py
 python -m pytest
 ```
 
 The demo returns an `ACT` response whose `execution_trace` records an allowlisted `record` tool
-changing `approved` from `false` to `true`. The suite currently has **140 passing tests** and six
-skipped opt-in service tests.
+changing `approved` from `false` to `true`. CI reports the current test count; six live-service
+checks are opt-in and skip when their external runtimes are not enabled.
 
 ## Native desktop interface
 
@@ -132,28 +139,51 @@ tools, constraints, structured state, and attachments, then displays the control
 selected candidate, coverage, confidence, feedback, candidates, and trace. The selected language
 and decision model services must be running for real inference.
 
-You can also paste only an unstructured situation and choose **Understand for me** (or leave Goal
-blank and choose **Make decision**). The configured DLM drafts the goal, instruction, constraints,
-assumptions, and possible tools for review. Proposed tools are never silently granted permission.
-If that model service is offline, the GUI creates an explicitly labeled low-confidence local draft
-for review instead of failing; an actual model-backed decision still requires a running service.
-Unambiguous arithmetic such as `calculate 1+3` takes a restricted deterministic calculator route
-and returns `4` without invoking the model or decision loop. Infrastructure failures are displayed
-as **UNAVAILABLE**, not as evidence-based `ESCALATE` decisions.
+Paste a full request, context only, or fill a few fields and choose **Complete missing fields**.
+**Make decision** also drafts incomplete inputs before running the decision loop; review the draft
+and click it again to continue. The configured DLM fills missing goal, instructions, boundaries,
+and task-relevant options while preserving supplied fields. Tasks are not forced into a
+"safest next action" template. Generated instructions/options appear in history and are supplied
+to the candidate generator. Optional tools and constraints may remain empty; review proposed
+tools before proceeding. If the DLM is unavailable, inputs stay intact and no interpretation is
+fabricated. Infrastructure failures are displayed as **UNAVAILABLE**, not as evidence-based
+`ESCALATE` decisions. Arithmetic follows the same DLM-backed completion flow as other tasks.
 Multiple chats and bounded recent history are kept in a private local SQLite database. Choose
 **Open data folder** to inspect it; launch with `--account NAME` for another local profile or
 `--data-dir PATH` to choose its location.
 
-The sidebar groups chats under projects. Use ＋ to create projects or numbered chats
-(`Chat 1`, `Chat 2`, …); right-click a rounded navigation item to rename or delete it.
+The sidebar treats projects as containers, with their chats shown as indented children. **No project**
+is a separate container for standalone chats. Use ＋ to create projects or numbered chats
+(`Chat 1`, `Chat 2`, …); right-click a chat to rename, move it to a project/No project, or delete it.
 Project deletion removes its chats and leaves the folder's files untouched.
 The rightmost conversation column shows structured user requests right-aligned and DiCoJev
 coverage/adequacy, option scores, and choices left-aligned. **Settings** opens inside the same window.
-Its Model registry tab adds models by name, role (language/decision), deployment (local/online),
+The optional Structured State JSON is combined with the ordinary context, constraints, generated
+candidate set, and decision instructions; it is not the complete or exclusive Jev input.
+The three workspace sections have draggable horizontal dividers, so navigation, request, and
+conversation width can be traded off directly. Vertical scrollbar tracks stay hidden; the mouse
+wheel and touchpad continue scrolling the section under the pointer.
+Its dark Model registry tab adds models by name, radio-button role (language/decision) and
+deployment (local/cloud). Local and cloud are exclusive sources: local shows a folder picker;
+cloud shows endpoint, model identifier, and API key controls. It also records the
 adapter, endpoint, and optional provider model identifier. Right-click a registered model to edit
 its details or credentials. The Project chats tab sets each chat's name and independent language
-and decision models using only registered choices. Local models use a running loopback server URL;
-weights are loaded by that server. Settings stores per-model keys using Windows DPAPI and
+and decision models using only registered choices. Each chat keeps its own pair. Full
+**Language model** and **Decision model** selectors in the workspace switch the
+current chat immediately, without changing other chats. Local models use an adapter-specific loopback runtime default;
+weights are loaded by that server. **Choose model folder** discovers metadata and weight files
+in the selected folder or immediate subfolders; it rejects missing, ambiguous, or mismatched
+model types. Discovery does not start a runtime or prove the weights can load. Generic decision
+models need a `dicojev-model.json` file alongside their weights, for example:
+
+```json
+{"role":"decision","adapter":"laya_local","model_identifier":"english","endpoint":"http://127.0.0.1:8000"}
+```
+
+Cloud registration asks permission for a small, potentially billable capability test using the
+endpoint, model identifier, and key. A key alone cannot reveal model type. Rejected credentials,
+unreachable services, and incompatible language/decision responses are reported separately.
+Settings stores per-model keys using Windows DPAPI and
 reports provider-supplied input, output, and total tokens grouped by model and chat. A zero means
 the model server did not report token counts; DiCoJev does not invent them.
 
@@ -180,6 +210,14 @@ resolutions.
 
 Images and plain-text/code/data files work with the base installation. Experimental PDF, DOCX,
 speech, and video intake use optional local preprocessors:
+
+For a text-only pair such as Mercury + Jev, image and sampled-video frames are first analyzed by
+the local Ollama model `qwen3.5:9b`; the bounded, explicitly labeled vision evidence then enters the
+normal DLM-to-decision loop. A model pair that declares native multimodal support continues to
+receive the original pixels directly. DiCoJev fails clearly if the required local vision model is
+not installed or running rather than silently ignoring an attachment. When either downstream model
+is cloud-hosted, the desktop asks permission before sending the locally derived text description;
+the original image bytes remain local.
 
 ```powershell
 python -m pip install -e ".[media]"
@@ -216,7 +254,7 @@ print(response.action, response.selected_candidate)
 ```
 
 The optional API extra exposes the same runtime at `POST /v1/decide` and returns the full typed
-feedback and execution trace. To run the real v5 path, start the separately installed LLaDA-V
+feedback and execution trace. To run the unified local LLaDA path, start the separately installed LLaDA-V
 service, validate generation and native reads, then start the API:
 
 ```powershell
@@ -227,7 +265,7 @@ service, validate generation and native reads, then start the API:
 
 .\.venv\Scripts\python.exe scripts\runtime_smoke.py --generator llada --timeout 600
 .\.venv\Scripts\python.exe scripts\native_read_smoke.py --base-url http://127.0.0.1:8002
-dicojev-api --config configs/versions/v5.yaml --host 127.0.0.1 --port 8080
+dicojev-api --config configs/default.yaml --host 127.0.0.1 --port 8080
 ```
 
 Model weights and the official LLaDA-V source are not bundled. On the measured CPU setup, local
@@ -248,7 +286,7 @@ See [`docs/usage/LOCAL_SETUP.md`](docs/usage/LOCAL_SETUP.md) for deployment shap
 | Is native LLaDA coverage as strong as hosted Jev? | Six matched sets | No; it was weaker in this small study. |
 
 These results validate the software architecture and measurement pipeline, not a general accuracy
-or latency advantage. Read [`docs/research/V5_EVALUATION.md`](docs/research/V5_EVALUATION.md)
+or latency advantage. Read the historical [1.0 release evaluation](docs/research/V5_EVALUATION.md)
 before citing results.
 
 ## Relationship to current agent frameworks
@@ -322,3 +360,7 @@ selection -> choice
 Typed feedback is **not** a fourth Jev field. Backend evidence is normalized first; the project-owned controller and `FeedbackCompiler` then produce the next-loop feedback signal.
 
 For the full research framing, start with [`docs/research/PROJECT_DESCRIPTION.md`](docs/research/PROJECT_DESCRIPTION.md).
+
+## License
+
+DiCoJev is licensed under the [Apache License 2.0](LICENSE).

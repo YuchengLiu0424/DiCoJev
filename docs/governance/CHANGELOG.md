@@ -4,27 +4,27 @@
 
 ### 1.2.0
 
-- Added a restricted deterministic arithmetic route so simple calculations bypass candidate
-  generation and return direct answers without requiring a model service.
-- Separated component outages from epistemic escalation in the GUI: model failures now display as
-  `UNAVAILABLE`, while `ESCALATE` remains a decision-loop outcome.
-- Made context-only drafting fail soft when the configured DLM is offline, with a clearly labeled
-  low-confidence local draft that still requires review.
-- Moved the active-chat transcript to the rightmost column with right-aligned structured requests
-  and left-aligned adequacy, coverage, option-score, and choice results.
-- Reworked every floating field hint into one description line followed by one example line.
-- Added Workspace and Settings scenes inside one native window, with DPAPI-protected model keys.
-- Added a model registry and independent language/decision model assignments for each project chat.
-- Defaulted new chats to local DiffusionGemma and local Laya; retained unified LLaDA as a research configuration.
-- Added rounded, padded project/chat navigation with right-click rename and deletion.
-- Removed desktop dependence
-  on environment variables.
-- Added provider-reported token accounting grouped by model and chat.
-- Added numbered default chat names, rename, confirmed deletion, and an active-chat interaction
-  history column.
-- Added persistent projects, a project file browser, and a path-confined `ProjectWorkspace` API
-  that is read-only unless write access is explicitly granted.
-- Kept arbitrary shell and desktop control disabled pending a separate capability/consent design.
+- Added project-contained and unassigned chats, rounded navigation, right-click rename/move/delete,
+  bounded local history, and per-chat language/decision model assignments.
+- Added an in-window Settings scene with a role/deployment-aware model registry, local-folder
+  discovery, cloud capability probes, per-model token usage, and Windows DPAPI credential storage.
+- Added full Language model and Decision model selectors to each conversation and adapter standards
+  that reject incompatible role/deployment combinations.
+- Added context-only and partial-field intent completion without forcing every request into a
+  safest-next-action template. Mercury uses a bounded low-reasoning JSON path; local LLaDA chats
+  use Qwen2 as the intent bridge.
+- Added the verified Mercury-generation/Jev-decision route as the credential-aware fast default,
+  while retaining the private LLaDA/native-decision route for explicitly started local runtimes.
+- Added local `qwen3.5:9b` vision preprocessing for text-only model pairs. Original image bytes stay
+  local, and the GUI requests consent before derived visual text is sent to a cloud model.
+- Added explicit attachment provenance, image/video/text/document/audio intake, and fail-closed
+  capability handling instead of silently ignoring unsupported media.
+- Added draggable workspace columns, hidden scrollbar tracks with retained wheel scrolling, larger
+  typography, compact placeholders, and a rightmost structured conversation history.
+- Added persistent project folders and a path-confined `ProjectWorkspace` API that is read-only
+  unless write access is explicitly granted. Arbitrary shell and desktop control remain disabled.
+- Distinguished provider/runtime outages (`UNAVAILABLE`) from evidence-driven controller actions,
+  and fixed null/truncated Mercury intent responses by reserving tokens for visible structured JSON.
 
 ### 1.1.0
 

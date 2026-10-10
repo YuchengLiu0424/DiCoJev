@@ -8,6 +8,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+import httpx
+
+from .multimodal import materialize_image
 from .schemas import DecisionRequest, ImageRef
 
 TEXT_SUFFIXES = {
@@ -36,6 +39,82 @@ class AttachmentResult:
     text_blocks: tuple[str, ...] = ()
     images: tuple[ImageRef, ...] = ()
     metadata: tuple[dict[str, Any], ...] = ()
+
+
+class LocalVisionBridge:
+    """Turn native images into explicit local vision evidence for text-only model pairs."""
+
+    def __init__(
+        self,
+        *,
+        base_url: str = "http://127.0.0.1:11434",
+        model: str = "qwen3.5:9b",
+        timeout_seconds: float = 180,
+        transport: httpx.BaseTransport | None = None,
+    ) -> None:
+        self.base_url = base_url.rstrip("/")
+        self.model = model
+        self.timeout_seconds = timeout_seconds
+        self.transport = transport
+
+    def enrich_request(self, request: DecisionRequest) -> DecisionRequest:
+        """Analyze all images together, retain provenance, and pass bounded text downstream."""
+        if not request.state.images:
+            return request
+        encoded_images: list[str] = []
+        for image in request.state.images:
+            native = materialize_image(image)
+            if not native.url.startswith("data:"):
+                raise ValueError("Local vision preprocessing requires local image bytes.")
+            encoded_images.append(native.url.partition(",")[2])
+        prompt = (
+            "Analyze the attached image or sampled video frames for the user's task. Describe "
+            "only visible evidence: subjects, text, layout, relevant relationships, and uncertainty. "
+            "Do not decide among options and do not invent hidden facts.\n\n"
+            f"User observation: {request.state.text}\nGoal: {request.goal}"
+        )
+        try:
+            with httpx.Client(
+                base_url=self.base_url,
+                timeout=self.timeout_seconds,
+                transport=self.transport,
+            ) as client:
+                response = client.post(
+                    "/api/chat",
+                    json={
+                        "model": self.model,
+                        "messages": [{"role": "user", "content": prompt, "images": encoded_images}],
+                        "stream": False,
+                        "think": False,
+                        "options": {"temperature": 0},
+                    },
+                )
+                response.raise_for_status()
+                description = response.json()["message"]["content"].strip()
+        except (httpx.HTTPError, KeyError, TypeError, ValueError) as error:
+            raise RuntimeError(
+                f"Local image analysis requires Ollama model '{self.model}' at {self.base_url}."
+            ) from error
+        if not description:
+            raise RuntimeError("The local vision model returned an empty image analysis.")
+        text = "\n\n".join(
+            part
+            for part in (
+                request.state.text,
+                f"[Local vision analysis · {self.model}]\n{description}",
+            )
+            if part
+        )
+        structured = dict(request.state.structured)
+        structured["vision_bridge"] = {
+            "model": self.model,
+            "image_count": len(request.state.images),
+            "mode": "local_image_to_text_for_text_only_pair",
+        }
+        state = request.state.model_copy(
+            update={"text": text, "images": (), "structured": structured}
+        )
+        return request.model_copy(update={"state": state})
 
 
 class LocalMediaIngestor:

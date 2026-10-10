@@ -30,7 +30,7 @@ def percentile(values: list[float], fraction: float) -> float:
 async def evaluate() -> dict:
     tracemalloc.start()
     v2 = await load_script("evaluate_v2.py").run()
-    demo_response = await load_script("v5_offline_agent.py", directory="examples").run_demo()
+    demo_response = await load_script("offline_agent.py", directory="examples").run_demo()
     _current, peak = tracemalloc.get_traced_memory()
     tracemalloc.stop()
     latencies = [case["total_latency_ms"] for case in v2["cases"]]

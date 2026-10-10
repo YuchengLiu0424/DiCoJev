@@ -33,10 +33,11 @@ class DirectClient:
     ) -> DirectClient:
         payload = load_config(config) if isinstance(config, (str, Path)) else dict(config)
         model = payload.get("model", {})
+        intent = payload.get("intent", {})
         inferer = DLMIntentInferer(
-            base_url=model.get("base_url", "http://127.0.0.1:8002"),
-            model=model.get("generator_model", "llada-v-local"),
-            timeout_seconds=model.get("timeout_seconds", 600),
+            base_url=intent.get("base_url", model.get("base_url", "http://127.0.0.1:8002")),
+            model=intent.get("model", model.get("generator_model", "llada-v-local")),
+            timeout_seconds=intent.get("timeout_seconds", model.get("timeout_seconds", 600)),
             transport=dependencies.get("transport"),
             api_key=dependencies.get("generator_api_key", dependencies.get("api_key")),
         )
@@ -100,15 +101,19 @@ class DirectClient:
     async def decide(self, request: DecisionRequest) -> DecisionResponse:
         return await self.runtime.decide(request)
 
-    async def infer_intent(self, context: str, history: tuple[str, ...] = ()) -> IntentDraft:
+    async def infer_intent(
+        self, context: str, history: tuple[str, ...] = (), partial_fields: dict | None = None
+    ) -> IntentDraft:
         if self.intent_inferer is None:
             raise RuntimeError("This client has no configured intent inferer.")
-        return await self.intent_inferer.infer(context, history)
+        return await self.intent_inferer.infer(context, history, partial_fields)
 
-    def infer_intent_sync(self, context: str, history: tuple[str, ...] = ()) -> IntentDraft:
+    def infer_intent_sync(
+        self, context: str, history: tuple[str, ...] = (), partial_fields: dict | None = None
+    ) -> IntentDraft:
         if self.intent_inferer is None:
             raise RuntimeError("This client has no configured intent inferer.")
-        return self.intent_inferer.infer_sync(context, history)
+        return self.intent_inferer.infer_sync(context, history, partial_fields)
 
     def decide_sync(self, request: DecisionRequest) -> DecisionResponse:
         """Synchronous convenience method for desktop and ordinary script callers."""

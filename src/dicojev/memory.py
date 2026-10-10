@@ -64,6 +64,7 @@ class ModelDefinition:
     adapter: str
     location: str
     model_identifier: str = ""
+    local_path: str = ""
 
 
 @dataclass(frozen=True)
@@ -168,6 +169,10 @@ class LocalMemoryStore:
                 connection.execute(
                     "ALTER TABLE model_registry ADD COLUMN model_identifier TEXT NOT NULL DEFAULT ''"
                 )
+            if "local_path" not in columns:
+                connection.execute(
+                    "ALTER TABLE model_registry ADD COLUMN local_path TEXT NOT NULL DEFAULT ''"
+                )
             unnamed = connection.execute(
                 "SELECT id FROM chats WHERE title = 'New decision' ORDER BY created_at"
             ).fetchall()
@@ -196,12 +201,58 @@ class LocalMemoryStore:
         now = self._now()
         defaults = (
             (
+                f"{account_id}:mercury-cloud",
+                "Mercury Cloud",
+                "language",
+                "online",
+                "mercury",
+                "https://api.inceptionlabs.ai/v1",
+                "mercury-2.5",
+            ),
+            (
+                f"{account_id}:jev-cloud",
+                "Jev Cloud",
+                "decision",
+                "online",
+                "jev_cloud",
+                "https://api.typesafe.ai",
+                "jev-latest",
+            ),
+            (
+                f"{account_id}:llada-local",
+                "LLaDA Local",
+                "language",
+                "local",
+                "llada",
+                "http://127.0.0.1:8002",
+                "llada-v-local",
+            ),
+            (
+                f"{account_id}:llada-native-decision",
+                "LLaDA Native Decision",
+                "decision",
+                "local",
+                "native_dlm",
+                "http://127.0.0.1:8002",
+                "llada-v-local",
+            ),
+            (
+                f"{account_id}:qwen2-local",
+                "Qwen2 Local",
+                "language",
+                "local",
+                "openai_compatible",
+                "http://127.0.0.1:11434",
+                "qwen2:7b",
+            ),
+            (
                 f"{account_id}:diffusiongemma-local",
                 "DiffusionGemma Local",
                 "language",
                 "local",
                 "diffusiongemma",
                 "http://127.0.0.1:11434",
+                "dicojev-diffusiongemma",
             ),
             (
                 f"{account_id}:laya-local",
@@ -210,13 +261,24 @@ class LocalMemoryStore:
                 "local",
                 "laya_local",
                 "http://127.0.0.1:8000",
+                "english",
             ),
         )
-        for model_id, name, role, deployment, adapter, location in defaults:
+        for model_id, name, role, deployment, adapter, location, model_identifier in defaults:
             connection.execute(
                 "INSERT OR IGNORE INTO model_registry(id, account_id, name, role, deployment, "
-                "adapter, location, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                (model_id, account_id, name, role, deployment, adapter, location, now),
+                "adapter, location, created_at, model_identifier) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    model_id,
+                    account_id,
+                    name,
+                    role,
+                    deployment,
+                    adapter,
+                    location,
+                    now,
+                    model_identifier,
+                ),
             )
 
     def create_chat(
@@ -245,7 +307,7 @@ class LocalMemoryStore:
                 )
             defaults = connection.execute(
                 "SELECT id, role FROM model_registry WHERE account_id = ? AND name IN "
-                "('DiffusionGemma Local', 'Laya Local')",
+                "('LLaDA Local', 'LLaDA Native Decision')",
                 (account_id,),
             ).fetchall()
             by_role = {row["role"]: row["id"] for row in defaults}
@@ -272,6 +334,18 @@ class LocalMemoryStore:
                     "ORDER BY updated_at DESC",
                     (account_id,),
                 ).fetchall()
+        return tuple(ChatSummary(**dict(row)) for row in rows)
+
+    def list_unassigned_chats(self, account_id: str) -> tuple[ChatSummary, ...]:
+        """Return chats that deliberately live outside every project."""
+        self.ensure_account(account_id)
+        with self._connect() as connection:
+            rows = connection.execute(
+                "SELECT c.id, c.title, c.updated_at FROM chats c "
+                "LEFT JOIN chat_projects cp ON cp.chat_id = c.id "
+                "WHERE c.account_id = ? AND cp.chat_id IS NULL ORDER BY c.updated_at DESC",
+                (account_id,),
+            ).fetchall()
         return tuple(ChatSummary(**dict(row)) for row in rows)
 
     def append_turn(self, chat_id: str, role: str, content: dict[str, Any]) -> None:
@@ -413,6 +487,7 @@ class LocalMemoryStore:
         adapter: str,
         location: str,
         model_identifier: str = "",
+        local_path: str = "",
     ) -> str:
         if role not in {"language", "decision"}:
             raise ValueError("model role must be language or decision")
@@ -422,7 +497,7 @@ class LocalMemoryStore:
         with self._connect() as connection:
             connection.execute(
                 "INSERT INTO model_registry(id, account_id, name, role, deployment, adapter, "
-                "location, created_at, model_identifier) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "location, created_at, model_identifier, local_path) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (
                     model_id,
                     account_id,
@@ -433,13 +508,14 @@ class LocalMemoryStore:
                     location.strip(),
                     self._now(),
                     model_identifier.strip(),
+                    local_path.strip(),
                 ),
             )
         return model_id
 
     def list_models(self, account_id: str, role: str | None = None) -> tuple[ModelDefinition, ...]:
         query = (
-            "SELECT id, name, role, deployment, adapter, location, model_identifier FROM model_registry "
+            "SELECT id, name, role, deployment, adapter, location, model_identifier, local_path FROM model_registry "
             "WHERE account_id = ?"
         )
         parameters: list[Any] = [account_id]
@@ -465,13 +541,14 @@ class LocalMemoryStore:
         adapter: str,
         location: str,
         model_identifier: str = "",
+        local_path: str = "",
     ) -> None:
         if role not in {"language", "decision"} or deployment not in {"local", "online"}:
             raise ValueError("Invalid model role or deployment")
         with self._connect() as connection:
             connection.execute(
                 "UPDATE model_registry SET name=?, role=?, deployment=?, adapter=?, location=?, "
-                "model_identifier=? WHERE id=?",
+                "model_identifier=?, local_path=? WHERE id=?",
                 (
                     name.strip(),
                     role,
@@ -479,6 +556,7 @@ class LocalMemoryStore:
                     adapter,
                     location.strip(),
                     model_identifier.strip(),
+                    local_path.strip(),
                     model_id,
                 ),
             )
