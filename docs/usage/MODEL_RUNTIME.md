@@ -46,7 +46,9 @@ server is `scripts/llada_openai_server.py` using the official model code.
 
 ## Mercury API
 
-Set the API key only in the environment:
+In the native desktop, open **Settings** and save the API key for the active model. It is encrypted
+with Windows DPAPI for the current user and is not written to configuration or environment
+variables. For headless/legacy generator use, the environment remains a compatibility option:
 
 ```bash
 export INCEPTION_API_KEY="..."

@@ -1,4 +1,4 @@
-"""Fresh-install v5 demo: decide, execute an allowlisted tool, and print the transition."""
+"""Fresh-install demo: decide, execute an allowlisted tool, and print the transition."""
 
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ from dicojev.schemas import (
 
 
 async def run_demo():
-    """Run the self-contained v5 action loop and return its typed response."""
+    """Run the self-contained action loop and return its typed response."""
     candidate = Candidate(
         action="Record approval", tool="record", arguments_hint={"approved": True}
     )

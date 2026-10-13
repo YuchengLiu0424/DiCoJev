@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import os
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
@@ -23,6 +22,8 @@ class DirectClient:
     def __init__(self, runtime: Any, intent_inferer: DLMIntentInferer | None = None) -> None:
         self.runtime = runtime
         self.intent_inferer = intent_inferer
+        self.model_name = intent_inferer.model if intent_inferer else "unknown"
+        self.decision_model_name = "unknown"
 
     @classmethod
     def from_config(
@@ -32,31 +33,87 @@ class DirectClient:
     ) -> DirectClient:
         payload = load_config(config) if isinstance(config, (str, Path)) else dict(config)
         model = payload.get("model", {})
+        intent = payload.get("intent", {})
         inferer = DLMIntentInferer(
-            base_url=model.get("base_url", "http://127.0.0.1:8002"),
-            model=model.get("generator_model", "llada-v-local"),
-            timeout_seconds=model.get("timeout_seconds", 600),
+            base_url=intent.get("base_url", model.get("base_url", "http://127.0.0.1:8002")),
+            model=intent.get("model", model.get("generator_model", "llada-v-local")),
+            timeout_seconds=intent.get("timeout_seconds", model.get("timeout_seconds", 600)),
             transport=dependencies.get("transport"),
-            api_key=(
-                dependencies.get("api_key")
-                or os.getenv("INCEPTION_API_KEY")
-                or os.getenv("MERCURY_API_KEY")
-            ),
+            api_key=dependencies.get("generator_api_key", dependencies.get("api_key")),
         )
-        return cls(create_agent_runtime(payload, **dependencies), inferer)
+        client = cls(create_agent_runtime(payload, **dependencies), inferer)
+        client.decision_model_name = payload.get("decision_backend", {}).get(
+            "model", payload.get("decision_backend", {}).get("kind", "unknown")
+        )
+        return client
+
+    def configure_api_key(self, value: str | None) -> None:
+        """Apply a user-provided key to compatible model clients for this process."""
+        if self.intent_inferer is not None:
+            self.intent_inferer.api_key = value
+        orchestrator = getattr(self.runtime, "orchestrator", None)
+        generator = getattr(orchestrator, "generator", None)
+        nested = getattr(generator, "generator", None)
+        for target in (generator, nested):
+            if target is not None and hasattr(target, "api_key"):
+                target.api_key = value
+
+    def configure_api_keys(self, language_key: str | None, decision_key: str | None) -> None:
+        self.configure_api_key(language_key)
+        orchestrator = getattr(self.runtime, "orchestrator", None)
+        backend = getattr(orchestrator, "backend", None)
+        if backend is not None and hasattr(backend, "api_key"):
+            backend.api_key = decision_key
+
+    def usage_snapshot(self) -> dict[str, int | float]:
+        orchestrator = getattr(self.runtime, "orchestrator", None)
+        generator = getattr(orchestrator, "generator", None)
+        diagnostics = getattr(generator, "diagnostics", None)
+        if isinstance(diagnostics, dict):
+            totals = {"prompt_tokens": 0, "completion_tokens": 0}
+            aliases = {
+                "prompt_tokens": "prompt_tokens",
+                "input_tokens": "prompt_tokens",
+                "completion_tokens": "completion_tokens",
+                "output_tokens": "completion_tokens",
+            }
+
+            def collect(value: Any) -> None:
+                if isinstance(value, dict):
+                    for key, item in value.items():
+                        target = aliases.get(key)
+                        if target and isinstance(item, int | float):
+                            totals[target] += item
+                        elif isinstance(item, dict | list | tuple):
+                            collect(item)
+                elif isinstance(value, list | tuple):
+                    for item in value:
+                        collect(item)
+
+            collect(diagnostics)
+            return {
+                **totals,
+                "total_tokens": totals["prompt_tokens"] + totals["completion_tokens"],
+            }
+        usage = getattr(generator, "last_usage", {})
+        return dict(usage) if isinstance(usage, dict) else {}
 
     async def decide(self, request: DecisionRequest) -> DecisionResponse:
         return await self.runtime.decide(request)
 
-    async def infer_intent(self, context: str, history: tuple[str, ...] = ()) -> IntentDraft:
+    async def infer_intent(
+        self, context: str, history: tuple[str, ...] = (), partial_fields: dict | None = None
+    ) -> IntentDraft:
         if self.intent_inferer is None:
             raise RuntimeError("This client has no configured intent inferer.")
-        return await self.intent_inferer.infer(context, history)
+        return await self.intent_inferer.infer(context, history, partial_fields)
 
-    def infer_intent_sync(self, context: str, history: tuple[str, ...] = ()) -> IntentDraft:
+    def infer_intent_sync(
+        self, context: str, history: tuple[str, ...] = (), partial_fields: dict | None = None
+    ) -> IntentDraft:
         if self.intent_inferer is None:
             raise RuntimeError("This client has no configured intent inferer.")
-        return self.intent_inferer.infer_sync(context, history)
+        return self.intent_inferer.infer_sync(context, history, partial_fields)
 
     def decide_sync(self, request: DecisionRequest) -> DecisionResponse:
         """Synchronous convenience method for desktop and ordinary script callers."""

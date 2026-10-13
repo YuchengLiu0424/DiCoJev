@@ -1,21 +1,26 @@
 project:
   name: dicojev
-  release_version: 1.1.0
-  research_milestone: v5.1
-  package_version: 1.1.0
+  release_version: 1.2.0
+  research_milestone: unified-runtime
+  package_version: 1.2.0
   environment: local
 
 model:
   generator_kind: llada
   generator_model: llada-v-local
-  deployment: unified_local_runtime
+  deployment: separate_models
   base_url: http://127.0.0.1:8002
   timeout_seconds: 600
   max_candidates: 8
 
+intent:
+  base_url: http://127.0.0.1:11434
+  model: qwen2:7b
+  timeout_seconds: 180
+
 decision_backend:
   kind: native_dlm
-  runtime_kind: unified_llada
+  runtime_kind: llada_http
   base_url: http://127.0.0.1:8002
   model: llada-v-local
   timeout_seconds: 600

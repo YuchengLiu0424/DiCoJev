@@ -1,0 +1,49 @@
+project: {release_version: 1.2.0, research_milestone: unified-runtime}
+model:
+  generator_kind: llada
+  generator_model: llada-v-local
+  deployment: separate_models
+  base_url: http://127.0.0.1:8002
+  timeout_seconds: 600
+  max_candidates: 8
+intent: {base_url: http://127.0.0.1:11434, model: "qwen2:7b", timeout_seconds: 180}
+decision_backend:
+  kind: native_dlm
+  runtime_kind: llada_http
+  base_url: http://127.0.0.1:8002
+  model: llada-v-local
+  timeout_seconds: 600
+runtime:
+  share_model_weights: true
+  share_multimodal_preprocessing: true
+  reuse_context_when_equivalent: true
+  batch_reads: false
+controller:
+  policy: threshold
+  min_coverage: 0.75
+  min_selection_confidence: 0.70
+  max_expansions: 2
+  max_total_candidates: 16
+  allow_abstain: true
+  allow_escalate: true
+feedback:
+  compiler: deterministic_templates
+  max_signals_per_round: 3
+  default_expand_count: 3
+  allow_freeform_reasoning: false
+  record_serialized_size: true
+interfaces:
+  native_gui: true
+  direct_python: true
+  http_api: true
+  settings: true
+  context_only_intent_drafting: true
+  local_profiles_and_chats: true
+memory:
+  storage: local_sqlite
+  credential_storage: windows_dpapi
+  usage_accounting: provider_reported
+  bounded_history_turns: 8
+agent:
+  project_workspaces: scoped_local_folders
+  arbitrary_computer_control: false

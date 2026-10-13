@@ -103,7 +103,8 @@ Decision Harness
 JevCloudBackend
 ```
 
-Set credentials only in the local environment, for example:
+For the native desktop, save credentials in **Settings**. Windows DPAPI encrypts them for the
+current user. For a headless comparison run, an environment variable remains available:
 
 ```bash
 export JEV_API_KEY="..."
@@ -113,8 +114,9 @@ Never commit an API key or place one in example configs.
 
 This path is useful as a strong hosted structured-decision comparison. Network and provider latency must be measured separately from local generation.
 
-For fast text generation, replace the local generator with `MercuryGenerator` and set
-`INCEPTION_API_KEY`. Mercury and Jev are separate hosted calls and their latency/usage must be
+For fast text generation, replace the local generator with `MercuryGenerator` and either save the
+active model key in desktop **Settings** or set `INCEPTION_API_KEY` for a headless run. Mercury and
+Jev are separate hosted calls and their latency/usage must be
 reported separately. Native image requests remain on local DiffusionGemma.
 
 Jev API documentation:

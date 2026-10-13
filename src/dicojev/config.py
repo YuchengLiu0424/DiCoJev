@@ -25,6 +25,7 @@ from .generator import (
     LladaGenerator,
     MercuryGenerator,
 )
+from .generator.diffusiongemma import OpenAICompatibleCandidateGenerator
 from .harness import DecisionOrchestrator
 from .runtime import AgentRuntime, UnifiedLladaRuntime
 from .v4 import CostAwareRiskController
@@ -52,14 +53,24 @@ def create_generator(config: dict[str, Any], **dependencies: Any):
             model=model.get("generator_model", "google/diffusiongemma-26B-A4B-it"),
             timeout_seconds=model.get("timeout_seconds", 60),
             transport=dependencies.get("transport"),
+            api_key=dependencies.get("generator_api_key", dependencies.get("api_key")),
+        )
+    if kind == "openai_compatible":
+        return OpenAICompatibleCandidateGenerator(
+            base_url=model.get("base_url", "http://127.0.0.1:8000"),
+            model=model.get("generator_model", "local-model"),
+            timeout_seconds=model.get("timeout_seconds", 60),
+            transport=dependencies.get("transport"),
+            api_key=dependencies.get("generator_api_key", dependencies.get("api_key")),
         )
     if kind == "mercury":
         return MercuryGenerator(
-            api_key=dependencies.get("api_key"),
+            api_key=dependencies.get("generator_api_key", dependencies.get("api_key")),
             base_url=model.get("base_url", "https://api.inceptionlabs.ai/v1"),
             model=model.get("generator_model", "mercury-2.5"),
             timeout_seconds=model.get("timeout_seconds", 60),
             transport=dependencies.get("transport"),
+            use_environment=dependencies.get("use_environment", True),
         )
     if kind == "llada":
         return LladaGenerator(
@@ -89,8 +100,9 @@ def create_backend(config: dict[str, Any], **dependencies: Any):
         return MockDecisionBackend(results, capabilities=dependencies.get("capabilities"))
     if kind == "jev_cloud":
         return JevCloudBackend(
-            api_key=dependencies.get("api_key"),
+            api_key=dependencies.get("decision_api_key", dependencies.get("api_key")),
             **{key: value for key, value in common.items() if value is not None},
+            use_environment=dependencies.get("use_environment", True),
         )
     if kind == "djev_local":
         return DjevLocalBackend(
@@ -140,9 +152,12 @@ def create_agent_runtime(config: dict[str, Any], **dependencies: Any) -> AgentRu
     runtime_config = config.get("runtime", {})
     model = config.get("model", {})
     shared_runtime = dependencies.get("unified_runtime")
-    if shared_runtime is None:
+    separate_models = model.get("deployment") == "separate_models"
+    if not separate_models and shared_runtime is None:
         if model.get("deployment") != "unified_local_runtime":
-            raise ConfigurationError("v5 runtime requires deployment: unified_local_runtime")
+            raise ConfigurationError(
+                "runtime requires deployment: unified_local_runtime or separate_models"
+            )
         shared_runtime = UnifiedLladaRuntime(
             base_url=model.get("base_url", "http://127.0.0.1:8002"),
             model=model.get("generator_model", "llada-v-local"),
@@ -167,9 +182,15 @@ def create_agent_runtime(config: dict[str, Any], **dependencies: Any) -> AgentRu
             controller_config.get("min_coverage", 0.75),
             controller_config.get("min_selection_confidence", 0.70),
         )
+    generator = create_generator(config, **dependencies) if separate_models else shared_runtime
+    backend = (
+        create_backend(config, **dependencies)
+        if separate_models
+        else shared_runtime.decision_backend()
+    )
     orchestrator = DecisionOrchestrator(
-        shared_runtime,
-        shared_runtime.decision_backend(),
+        generator,
+        backend,
         controller,
         dependencies.get("feedback_compiler") or DeterministicFeedbackCompiler(),
         dependencies.get("escalation_target"),

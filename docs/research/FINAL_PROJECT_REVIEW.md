@@ -105,7 +105,7 @@ feedback costs explicit. Its cost is additional complexity and, often, additiona
 
 The project is reproducible at three levels:
 
-- **Zero-service:** install the package, run `examples/v5_offline_agent.py`, run the test suite, and
+- **Zero-service:** install the package, run `examples/offline_agent.py`, run the test suite, and
   recreate `benchmarks/v5_evaluation.json`.
 - **Local model:** install the external LLaDA-V checkpoint/source, run the repository server, then
   execute generation and native-read smoke tests.

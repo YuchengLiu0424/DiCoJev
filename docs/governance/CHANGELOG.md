@@ -2,6 +2,30 @@
 
 ## Unreleased
 
+### 1.2.0
+
+- Added project-contained and unassigned chats, rounded navigation, right-click rename/move/delete,
+  bounded local history, and per-chat language/decision model assignments.
+- Added an in-window Settings scene with a role/deployment-aware model registry, local-folder
+  discovery, cloud capability probes, per-model token usage, and Windows DPAPI credential storage.
+- Added full Language model and Decision model selectors to each conversation and adapter standards
+  that reject incompatible role/deployment combinations.
+- Added context-only and partial-field intent completion without forcing every request into a
+  safest-next-action template. Mercury uses a bounded low-reasoning JSON path; local LLaDA chats
+  use Qwen2 as the intent bridge.
+- Added the verified Mercury-generation/Jev-decision route as the credential-aware fast default,
+  while retaining the private LLaDA/native-decision route for explicitly started local runtimes.
+- Added local `qwen3.5:9b` vision preprocessing for text-only model pairs. Original image bytes stay
+  local, and the GUI requests consent before derived visual text is sent to a cloud model.
+- Added explicit attachment provenance, image/video/text/document/audio intake, and fail-closed
+  capability handling instead of silently ignoring unsupported media.
+- Added draggable workspace columns, hidden scrollbar tracks with retained wheel scrolling, larger
+  typography, compact placeholders, and a rightmost structured conversation history.
+- Added persistent project folders and a path-confined `ProjectWorkspace` API that is read-only
+  unless write access is explicitly granted. Arbitrary shell and desktop control remain disabled.
+- Distinguished provider/runtime outages (`UNAVAILABLE`) from evidence-driven controller actions,
+  and fixed null/truncated Mercury intent responses by reserving tokens for visible structured JSON.
+
 ### 1.1.0
 
 - Added context-only DLM intent drafting with explicit review of inferred goals, constraints,
